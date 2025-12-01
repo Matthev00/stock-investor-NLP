@@ -6,7 +6,7 @@ import talib as ta
 import yfinance as yf
 from markdown_it import MarkdownIt
 
-from src.agents import StockAnalysisCrew
+from src.crews import StockAnalysisCrewFactory, CrewMode
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -83,6 +83,10 @@ if "stock_metrics" not in st.session_state:
     st.session_state.stock_metrics = None
 if "report" not in st.session_state:
     st.session_state.report = None
+if "report_mode" not in st.session_state:
+    st.session_state.report_mode = None
+if "execution_time" not in st.session_state:
+    st.session_state.execution_time = None
 
 
 st.set_page_config("Stock Investment Report", layout="wide")
@@ -93,6 +97,14 @@ st.sidebar.header("Configuration")
 ticker = st.sidebar.text_input("Stock symbol (eg. AAPL)")
 time_period = st.sidebar.selectbox("Time period", [period["period"] for period in INTERVAL_MAPPING])
 chart_type = st.sidebar.selectbox("Chart Type", ["Candlestick", "Line"])
+
+crew_mode = st.sidebar.radio(
+    "Analysis Mode",
+    options=[CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value],
+    format_func=lambda x: "Sequential" if x == CrewMode.SEQUENTIAL.value else "Group Chat",
+    horizontal=True
+)
+
 api_key = st.sidebar.text_input("Gemini API key", type="password")
 sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
@@ -135,11 +147,14 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
 
 if sidebar_col2.button("Generate report", type="primary", use_container_width=True):
     with st.spinner("Running multi-agent analysis…"):
-        result = StockAnalysisCrew(api_key).run(ticker)
+        crew = StockAnalysisCrewFactory.create(crew_mode, api_key)
+        result = crew.run(ticker)
 
-        report_md = format_markdown(str(result))
+        report_md = format_markdown(str(result["report"]))
         report_cleaned = escape_markdown_specials(report_md)
         st.session_state.report = report_cleaned
+        st.session_state.report_mode = result["mode"]
+        st.session_state.execution_time = result["execution_time"]
 
 if st.session_state.stock_metrics is not None:
     last_close = st.session_state.stock_metrics["last_close"]
@@ -164,6 +179,16 @@ if st.session_state.stock_fig is not None:
 
 if st.session_state.report is not None:
     st.header("Investment Report")
+    
+    # Display metadata
+    col1, col2 = st.columns(2)
+    with col1:
+        mode_label = "Sequential (Original)" if st.session_state.report_mode == CrewMode.SEQUENTIAL.value else "Group Chat (FinDebate)"
+        st.metric("Analysis Mode", mode_label)
+    with col2:
+        st.metric("Execution Time", f"{st.session_state.execution_time:.1f}s")
+    
+    st.divider()
     st.markdown(st.session_state.report)
 
 
