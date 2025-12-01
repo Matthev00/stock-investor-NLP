@@ -32,7 +32,7 @@ The final output is a cohesive investment report in Markdown format, offering an
 
 The platform operates using a multi-agent system orchestrated by CrewAI:
 1.  The user inputs a stock symbol and API key via the Streamlit interface.
-2.  An `StockAnalysisCrew` is initialized, which consists of four distinct AI agents: a Researcher, a Technical Analyst, a Fundamental Analyst, and a Reporter. These agents use Google's Gemini LLM (`gemini/gemini-2.0-flash`).
+2.  An `StockAnalysisCrew` is initialized, which consists of four distinct AI agents: a Researcher, a Technical Analyst, a Fundamental Analyst, and a Reporter. These agents use Google's Gemini LLM (`gemini/gemini-2.0-flash-lite`).
 3.  Each agent is assigned specific tasks:
     * The **Researcher** gathers news from Yahoo Finance, analyst opinions from Yahoo, and sentiment from Reddit discussions.
     * The **Technical Analyst** fetches historical market data from Yahoo Finance and performs technical analysis using TA-Lib.
@@ -93,7 +93,7 @@ The platform operates using a multi-agent system orchestrated by CrewAI:
 
 Once the setup is complete, run the Streamlit application:
 ```bash
-streamlit run src/app.py
+uv run streamlit run src/app.py
 ```
 ## Screenshots
 ### Main Interface
