@@ -2,12 +2,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-import talib as ta
-import yfinance as yf
+from datetime import datetime
 from markdown_it import MarkdownIt
 
 from src.crews import StockAnalysisCrewFactory, CrewMode
 from src.config import get_default_provider, LLMProvider
+from src.utils.pdf_exporter import PDFReportExporter
+from src.utils.chart_builder import ChartBuilder
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -19,16 +20,6 @@ INTERVAL_MAPPING = [
     {"period": "5y", "interval": "1wk"},
     {"period": "max", "interval": "1wk"},
 ]
-
-
-def process_data(ticker, data):
-    data = data.xs(ticker, axis=1, level=1)
-    if data.index.tzinfo is None:
-        data.index = data.index.tz_localize("UTC")
-    data.index = data.index.tz_convert("US/Eastern")
-    data.reset_index(inplace=True)
-    data.rename(columns={"Date": "Datetime"}, inplace=True)
-    return data
 
 
 # Calculate basic metrics from the stock data
@@ -45,40 +36,8 @@ def calculate_metrics(data):
 
 # Add simple moving average (SMA) and exponential moving average (EMA) indicators
 def add_technical_indicators(data: pd.DataFrame, indicators: dict) -> pd.DataFrame:
-    """
-    Add selected technical indicators to the dataframe.
-    
-    Args:
-        data: DataFrame with OHLCV data
-        indicators: Dictionary of selected indicators {name: bool}
-    
-    Returns:
-        DataFrame with added technical indicator columns
-    """
-    close_prices = data["Close"].to_numpy().flatten()
-    high_prices = data["High"].to_numpy().flatten()
-    low_prices = data["Low"].to_numpy().flatten()
-    volume = data["Volume"].to_numpy().flatten()
-    
-    # Moving Averages
-    if indicators.get("SMA 20"):
-        data["SMA_20"] = ta.SMA(close_prices, timeperiod=20)
-    if indicators.get("SMA 50"):
-        data["SMA_50"] = ta.SMA(close_prices, timeperiod=50)
-    if indicators.get("SMA 200"):
-        data["SMA_200"] = ta.SMA(close_prices, timeperiod=200)
-    if indicators.get("EMA 20"):
-        data["EMA_20"] = ta.EMA(close_prices, timeperiod=20)
-    if indicators.get("EMA 50"):
-        data["EMA_50"] = ta.EMA(close_prices, timeperiod=50)
-    
-    
-    # Volatility
-    if indicators.get("Bollinger Bands"):
-        data["BB_Upper"], data["BB_Middle"], data["BB_Lower"] = ta.BBANDS(close_prices)
- 
-    
-    return data
+    """Add selected technical indicators to the dataframe."""
+    return ChartBuilder.add_indicators(data, indicators)
 
 
 def format_markdown(text):
@@ -98,13 +57,8 @@ def escape_markdown_specials(text: str) -> str:
 
 
 def load_stock_data(symbol: str, period: dict) -> pd.DataFrame:
-    return yf.download(
-        symbol,
-        period=period["period"],
-        interval=period["interval"],
-        auto_adjust=True,
-        progress=False,
-    )
+    """Load and process stock data - wrapper for ChartBuilder."""
+    return ChartBuilder.load_and_process_data(symbol, period["period"])
 
 
 if "stock_fig" not in st.session_state:
@@ -166,7 +120,6 @@ sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
 if sidebar_col1.button("Update", type="primary", use_container_width=True):
     data = load_stock_data(ticker, next(filter(lambda x: x["period"] == time_period, INTERVAL_MAPPING)))
-    data = process_data(ticker, data)
 
     last_close, change, pct_change, high, low, volume = calculate_metrics(data)
     st.session_state.stock_metrics = {
@@ -181,73 +134,8 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
     # Add selected technical indicators
     data = add_technical_indicators(data, indicators)
 
-    fig = go.Figure()
-    if chart_type == "Candlestick":
-        fig.add_trace(
-            go.Candlestick(
-                x=data["Datetime"],
-                open=data["Open"],
-                high=data["High"],
-                low=data["Low"],
-                close=data["Close"],
-                name="Price",
-            )
-        )
-    else:
-        fig.add_trace(
-            go.Scatter(
-                x=data["Datetime"],
-                y=data["Close"],
-                mode="lines",
-                name="Close",
-                line=dict(color="blue"),
-            )
-        )
-
-    # Add selected moving averages
-    for ma_col in ["SMA_20", "SMA_50", "SMA_200", "EMA_20", "EMA_50"]:
-        if ma_col in data.columns and indicators.get(ma_col.replace("_", " ")):
-            fig.add_trace(
-                go.Scatter(
-                    x=data["Datetime"],
-                    y=data[ma_col],
-                    mode="lines",
-                    name=ma_col.replace("_", " "),
-                    line=dict(width=2),
-                )
-            )
-
-    # Add Bollinger Bands
-    if "BB_Upper" in data.columns and indicators.get("Bollinger Bands"):
-        fig.add_trace(
-            go.Scatter(
-                x=data["Datetime"],
-                y=data["BB_Upper"],
-                mode="lines",
-                name="BB Upper",
-                line=dict(dash="dash", color="red", width=1),
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=data["Datetime"],
-                y=data["BB_Lower"],
-                mode="lines",
-                name="BB Lower",
-                line=dict(dash="dash", color="red", width=1),
-                fill="tonexty",
-                fillcolor="rgba(255,0,0,0.1)",
-            )
-        )
-
-    fig.update_layout(
-        title=f"{ticker} {time_period.upper()} Chart",
-        xaxis_title="Time",
-        yaxis_title="Price (USD)",
-        height=600,
-        hovermode="x unified",
-        template="plotly_white",
-    )
+    # Build chart using ChartBuilder
+    fig = ChartBuilder.build_chart(data, ticker, indicators, time_period, chart_type)
 
     st.session_state.stock_fig = fig
     st.session_state.selected_indicators = indicators
@@ -301,6 +189,29 @@ if st.session_state.report is not None:
         st.metric("LLM Provider", provider_label)
     with col3:
         st.metric("Execution Time", f"{st.session_state.execution_time:.1f}s")
+    
+    st.divider()
+    
+    # Export to PDF button
+    exporter = PDFReportExporter()
+    pdf_buffer = exporter.export(
+        ticker=ticker,
+        report_text=st.session_state.report,
+        fig=st.session_state.stock_fig,
+        metrics=st.session_state.stock_metrics,
+        indicators=st.session_state.selected_indicators,
+        mode=st.session_state.report_mode,
+        provider=st.session_state.report_provider,
+        execution_time=st.session_state.execution_time
+    )
+    
+    st.download_button(
+        label="📥 Download Report as PDF",
+        data=pdf_buffer,
+        file_name=f"{ticker.upper()}_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+        mime="application/pdf",
+        key="download_pdf_btn"
+    )
     
     st.divider()
     st.markdown(st.session_state.report)

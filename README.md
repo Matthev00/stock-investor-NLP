@@ -37,6 +37,7 @@ The final output is a cohesive investment report in Markdown format, offering an
     * **Technical Analysis:** Calculates and interprets indicators like SMAs, EMAs, MACD, RSI, Bollinger Bands, Stochastics, ATR, OBV, and more. Identifies trends, patterns, support/resistance levels.
     * **Fundamental Analysis:** Assesses financial health, profitability, growth prospects, valuation (P/E, P/S, D/E, ROE, etc.), and overall intrinsic value.
 * **Dynamic Charting:** Displays stock price charts (candlestick or line) with configurable time periods using Plotly.
+* **PDF Export:** Download complete investment reports with charts and metrics in professional PDF format.
 
 ## How it Works (Architecture)
 
@@ -86,6 +87,7 @@ The platform operates using a multi-agent system orchestrated by CrewAI with two
 * **Web Interface & Visualization:**
     * Streamlit (`>=1.45.1`)
     * Plotly (`>=6.1.0`)
+    * ReportLab (`>=4.0.0`) (for PDF generation)
 * **Configuration & Environment:**
     * python-dotenv (`>=1.0.0`) (for environment variable management)
 
@@ -156,6 +158,7 @@ uv run streamlit run src/app.py
    - Click "Update" to fetch and display stock chart with current metrics
    - Click "Generate report" to run multi-agent analysis
    - View comprehensive investment report with mode and provider information
+   - **Export Report:** Click "Download Report as PDF" to export the full analysis with chart and metrics
 
 ## Analysis Modes Comparison
 
@@ -243,4 +246,11 @@ This analysis is for informational purposes only and is not financial or investm
 ## Future Enhancements
 * Implement additional data sources for sentiment analysis (e.g., Twitter/X).
 * Implement user accounts and history of generated reports.
-* Option to export reports to PDF.
+* Support for cryptocurrency and commodity analysis.
+* Custom agent configurations and roles.
+* Batch analysis for multiple stocks.
+* Real-time price alerts and notifications.
+* Support for additional LLM providers (Claude, Llama, etc.).
+* Comparison mode for analyzing multiple stocks side-by-side.
+* Advanced technical analysis with custom indicator parameters.
+* Save and load custom indicator presets.
