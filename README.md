@@ -166,16 +166,6 @@ uv run streamlit run src/app.py
 | **Recommendation** | Direct from Reporter | Consensus after group debate |
 | **Best For** | Quick decisions, lower cost | Thorough analysis, risk-averse investors |
 
-## Provider Comparison
-
-| Feature | Gemini | OpenAI |
-|---------|--------|--------|
-| **Speed** | Very fast | Fast |
-| **Sequential Model** | gemini-2.0-flash-lite | gpt-4o-mini |
-| **Group Chat Model** | gemini-2.0-flash | gpt-4o |
-| **Cost** | Moderate | Higher |
-| **Availability** | Global | Global |
-
 ## Configuration Guide
 
 ### Environment Variables (`.env` file)
