@@ -44,11 +44,40 @@ def calculate_metrics(data):
 
 
 # Add simple moving average (SMA) and exponential moving average (EMA) indicators
-def add_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
-    # data["SMA_20"] = ta.trend.sma_indicator(data["Close"], window=20)
-    # data["EMA_20"] = ta.trend.ema_indicator(data["Close"], window=20)
-    data["SMA_20"] = ta.SMA(data["Close"].to_numpy().flatten(), timeperiod=20)
-    data["EMA_20"] = ta.EMA(data["Close"].to_numpy().flatten(), timeperiod=20)
+def add_technical_indicators(data: pd.DataFrame, indicators: dict) -> pd.DataFrame:
+    """
+    Add selected technical indicators to the dataframe.
+    
+    Args:
+        data: DataFrame with OHLCV data
+        indicators: Dictionary of selected indicators {name: bool}
+    
+    Returns:
+        DataFrame with added technical indicator columns
+    """
+    close_prices = data["Close"].to_numpy().flatten()
+    high_prices = data["High"].to_numpy().flatten()
+    low_prices = data["Low"].to_numpy().flatten()
+    volume = data["Volume"].to_numpy().flatten()
+    
+    # Moving Averages
+    if indicators.get("SMA 20"):
+        data["SMA_20"] = ta.SMA(close_prices, timeperiod=20)
+    if indicators.get("SMA 50"):
+        data["SMA_50"] = ta.SMA(close_prices, timeperiod=50)
+    if indicators.get("SMA 200"):
+        data["SMA_200"] = ta.SMA(close_prices, timeperiod=200)
+    if indicators.get("EMA 20"):
+        data["EMA_20"] = ta.EMA(close_prices, timeperiod=20)
+    if indicators.get("EMA 50"):
+        data["EMA_50"] = ta.EMA(close_prices, timeperiod=50)
+    
+    
+    # Volatility
+    if indicators.get("Bollinger Bands"):
+        data["BB_Upper"], data["BB_Middle"], data["BB_Lower"] = ta.BBANDS(close_prices)
+ 
+    
     return data
 
 
@@ -90,6 +119,8 @@ if "report_provider" not in st.session_state:
     st.session_state.report_provider = None
 if "execution_time" not in st.session_state:
     st.session_state.execution_time = None
+if "selected_indicators" not in st.session_state:
+    st.session_state.selected_indicators = {}
 
 
 st.set_page_config("Stock Investment Report", layout="wide")
@@ -114,6 +145,23 @@ crew_mode = st.sidebar.radio(
     format_func=lambda x: "Sequential" if x == CrewMode.SEQUENTIAL.value else "Group Chat",
     horizontal=True
 )
+
+st.sidebar.subheader("📊 Technical Indicators")
+with st.sidebar.expander("Select Indicators", expanded=True):
+    st.write("**Moving Averages**")
+    indicators = {
+        "SMA 20": st.checkbox("SMA 20", value=True),
+        "SMA 50": st.checkbox("SMA 50", value=False),
+        "SMA 200": st.checkbox("SMA 200", value=False),
+        "EMA 20": st.checkbox("EMA 20", value=False),
+        "EMA 50": st.checkbox("EMA 50", value=False),
+    }
+    
+    st.write("**Volatility**")
+    indicators.update({
+        "Bollinger Bands": st.checkbox("Bollinger Bands", value=False),
+    })
+    
 sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
 if sidebar_col1.button("Update", type="primary", use_container_width=True):
@@ -130,6 +178,9 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
         "volume": volume,
     }
 
+    # Add selected technical indicators
+    data = add_technical_indicators(data, indicators)
+
     fig = go.Figure()
     if chart_type == "Candlestick":
         fig.add_trace(
@@ -139,19 +190,67 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
                 high=data["High"],
                 low=data["Low"],
                 close=data["Close"],
+                name="Price",
             )
         )
     else:
-        fig = px.line(data, x="Datetime", y="Close")
+        fig.add_trace(
+            go.Scatter(
+                x=data["Datetime"],
+                y=data["Close"],
+                mode="lines",
+                name="Close",
+                line=dict(color="blue"),
+            )
+        )
+
+    # Add selected moving averages
+    for ma_col in ["SMA_20", "SMA_50", "SMA_200", "EMA_20", "EMA_50"]:
+        if ma_col in data.columns and indicators.get(ma_col.replace("_", " ")):
+            fig.add_trace(
+                go.Scatter(
+                    x=data["Datetime"],
+                    y=data[ma_col],
+                    mode="lines",
+                    name=ma_col.replace("_", " "),
+                    line=dict(width=2),
+                )
+            )
+
+    # Add Bollinger Bands
+    if "BB_Upper" in data.columns and indicators.get("Bollinger Bands"):
+        fig.add_trace(
+            go.Scatter(
+                x=data["Datetime"],
+                y=data["BB_Upper"],
+                mode="lines",
+                name="BB Upper",
+                line=dict(dash="dash", color="red", width=1),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=data["Datetime"],
+                y=data["BB_Lower"],
+                mode="lines",
+                name="BB Lower",
+                line=dict(dash="dash", color="red", width=1),
+                fill="tonexty",
+                fillcolor="rgba(255,0,0,0.1)",
+            )
+        )
 
     fig.update_layout(
         title=f"{ticker} {time_period.upper()} Chart",
         xaxis_title="Time",
         yaxis_title="Price (USD)",
         height=600,
+        hovermode="x unified",
+        template="plotly_white",
     )
 
     st.session_state.stock_fig = fig
+    st.session_state.selected_indicators = indicators
 
 if sidebar_col2.button("Generate report", type="primary", use_container_width=True):
     with st.spinner("Running multi-agent analysis…"):
