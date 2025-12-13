@@ -12,17 +12,18 @@ from src.crews.agents_definitions import (
     create_leader_agent,
 )
 from src.crews.tasks_definitions import create_task, TaskType
+from src.config import LLMConfig
 
 
 class GroupChatStockAnalysisCrew:
     """Group Chat mode - 6 agents in hierarchical debate with Leader orchestrating."""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+    def __init__(self, config: LLMConfig):
+        self.config = config
         self.llm = LLM(
-            model="gemini/gemini-2.0-flash",
-            api_key=self.api_key,
-            temperature=0.5,
+            model=self.config.model_group_chat,
+            api_key=self.config.api_key,
+            temperature=self.config.temperature,
         )
         self._initialize_agents()
 
@@ -46,7 +47,7 @@ class GroupChatStockAnalysisCrew:
             stock_symbol: Stock ticker symbol
 
         Returns:
-            Dictionary with mode, execution_time, and report
+            Dictionary with mode, provider, execution_time, and report
         """
         start_time = time()
 
@@ -91,6 +92,7 @@ class GroupChatStockAnalysisCrew:
 
             return {
                 "mode": "group_chat",
+                "provider": self.config.provider.value,
                 "execution_time": execution_time,
                 "report": str(result),
             }
@@ -98,6 +100,7 @@ class GroupChatStockAnalysisCrew:
             execution_time = time() - start_time
             return {
                 "mode": "group_chat",
+                "provider": self.config.provider.value,
                 "execution_time": execution_time,
                 "report": f"Group Chat mode failed: {str(e)}. Recommend using Sequential mode.",
                 "error": str(e),

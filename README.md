@@ -13,11 +13,21 @@ The final output is a cohesive investment report in Markdown format, offering an
 
 ## Features
 
-* **Multi-Agent Analysis:** Utilizes a team of AI agents (powered by CrewAI and Google Gemini) for specialized tasks:
-    * **Senior Stock Market Researcher:** Gathers qualitative data, public sentiment from Reddit, Yahoo News, and Yahoo financial analyses.
-    * **Expert Technical Analyst:** Performs in-depth technical analysis using a wide array of indicators.
-    * **Senior Fundamental Analyst:** Conducts comprehensive fundamental analysis of the company's financial health, valuation, and market position using Yahoo Finance data.
-    * **Chief Investment Strategist:** Synthesizes all analyses into a final investment report.
+* **Multi-Agent Analysis with Multiple Modes:** Utilizes a team of AI agents (powered by CrewAI) for specialized tasks:
+    * **Sequential Mode:** Linear workflow with 4 agents
+        * **Senior Stock Market Researcher:** Gathers qualitative data, public sentiment from Reddit, Yahoo News, and Yahoo financial analyses.
+        * **Expert Technical Analyst:** Performs in-depth technical analysis using a wide array of indicators.
+        * **Senior Fundamental Analyst:** Conducts comprehensive fundamental analysis of the company's financial health, valuation, and market position using Yahoo Finance data.
+        * **Chief Investment Strategist:** Synthesizes all analyses into a final investment report.
+    * **Group Chat Mode (FinDebate):** Hierarchical debate with 6 agents
+        * Original 3 specialist agents (Researcher, Technical Analyst, Fundamental Analyst)
+        * **Devil's Advocate (Sceptic):** Challenges assumptions and identifies risks
+        * **Data Verification Specialist:** Validates data accuracy and source credibility
+        * **Discussion Moderator & Chief Synthesizer (Leader):** Orchestrates the debate and synthesizes final recommendation
+* **Dual LLM Provider Support:** 
+    * **Gemini** (Google) - Default provider with fast lite models
+    * **OpenAI** - Alternative provider with GPT-4 models
+    * Easy provider switching via UI dropdown or `.env` configuration
 * **Interactive Web Interface:** Built with Streamlit for easy user interaction, allowing users to input stock symbols and view charts and reports.
 * **Data Sources:**
     * **Yahoo Finance (yfinance):** For historical stock data, company information, financial news, analyst estimates, and fundamental data.
@@ -30,22 +40,41 @@ The final output is a cohesive investment report in Markdown format, offering an
 
 ## How it Works (Architecture)
 
-The platform operates using a multi-agent system orchestrated by CrewAI:
-1.  The user inputs a stock symbol and API key via the Streamlit interface.
-2.  An `StockAnalysisCrew` is initialized, which consists of four distinct AI agents: a Researcher, a Technical Analyst, a Fundamental Analyst, and a Reporter. These agents use Google's Gemini LLM (`gemini/gemini-2.0-flash-lite`).
-3.  Each agent is assigned specific tasks:
-    * The **Researcher** gathers news from Yahoo Finance, analyst opinions from Yahoo, and sentiment from Reddit discussions.
-    * The **Technical Analyst** fetches historical market data from Yahoo Finance and performs technical analysis using TA-Lib.
-    * The **Fundamental Analyst** fetches and analyzes company overview, financial statements, and key ratios from Yahoo Finance.
-    * The **Reporter** takes the outputs from the other three agents, synthesizes the information, identifies convergences/divergences, and compiles a comprehensive investment report.
-4.  The final report is displayed in the Streamlit application.
+The platform operates using a multi-agent system orchestrated by CrewAI with two distinct execution modes:
+
+### Sequential Mode (Original - Default)
+1. The user inputs a stock symbol via the Streamlit interface.
+2. A `SequentialStockAnalysisCrew` is initialized with 4 agents (Researcher, Technical Analyst, Fundamental Analyst, Reporter).
+3. Agents execute in linear order with task dependencies:
+   - **Researcher** gathers news from Yahoo Finance, analyst opinions, and sentiment from Reddit
+   - **Technical Analyst** fetches historical market data and performs technical analysis
+   - **Fundamental Analyst** fetches and analyzes company financial data
+   - **Reporter** synthesizes all outputs into a comprehensive investment report
+4. Final report is displayed in the Streamlit application.
+
+### Group Chat Mode (FinDebate - New)
+1. User selects "Group Chat" mode in the UI.
+2. A `GroupChatStockAnalysisCrew` is initialized with 6 agents in a hierarchical structure.
+3. Agents execute in parallel with group discussion coordination:
+   - **Original 3 specialists** (Researcher, Technical Analyst, Fundamental Analyst) gather and analyze data
+   - **Sceptic** challenges assumptions and identifies potential risks
+   - **Trust Agent** validates data accuracy and source credibility
+   - **Leader** orchestrates the debate and synthesizes final consensus recommendation
+4. Hierarchical process ensures all perspectives are considered before final recommendation.
+5. Final debate-synthesized report is displayed.
+
+### LLM Provider Configuration
+- **Gemini (Default):** Uses `gemini-2.0-flash-lite` (sequential) and `gemini-2.0-flash` (group chat)
+- **OpenAI:** Uses `gpt-4o-mini` (sequential) and `gpt-4o` (group chat)
+- Provider can be changed via UI dropdown or configured in `.env` file
 
 ## Technologies Used
 
 * **Backend & AI:**
-    * Python
-    * CrewAI (`>=0.119.0`)
-    * Google Gemini (via CrewAI LLM integration)
+    * Python (`>=3.10`)
+    * CrewAI (`>=1.6.1`) - Multi-agent orchestration framework
+    * Google Gemini API (via CrewAI LLM integration)
+    * OpenAI API (gpt-4o family models)
     * Transformers (`>=4.51.3`) (for local sentiment analysis model)
     * PyTorch (`>=2.7.0`)
 * **Data Handling & Analysis:**
@@ -57,6 +86,8 @@ The platform operates using a multi-agent system orchestrated by CrewAI:
 * **Web Interface & Visualization:**
     * Streamlit (`>=1.45.1`)
     * Plotly (`>=6.1.0`)
+* **Configuration & Environment:**
+    * python-dotenv (`>=1.0.0`) (for environment variable management)
 
 
 ## Setup and Installation
@@ -85,9 +116,15 @@ The platform operates using a multi-agent system orchestrated by CrewAI:
     REDDIT_CLIENT_ID="YOUR_REDDIT_CLIENT_ID"
     REDDIT_CLIENT_SECRET="YOUR_REDDIT_CLIENT_SECRET"
     REDDIT_USER_AGENT="YOUR_REDDIT_USER_AGENT_STRING"
+    LLM_PROVIDER="gemini"
+    GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+    OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
     ```
     Replace the placeholder values with your actual API keys.
     * **Reddit API Credentials:** Create an app on Reddit to get these https://www.reddit.com/prefs/apps. `REDDIT_CLIENT_ID` will be in the left top corner, `REDDIT_CLIENT_SECRET` will be next **secret** field, and `REDDIT_USER_AGENT` can be any string that describes your application.
+    * **LLM Provider:** Wybierz `gemini` lub `openai`. W aplikacji możesz zmienić providera z menu dropdown.
+      - **Gemini:** Pobierz klucz z https://aistudio.google.com/app/apikey
+      - **OpenAI:** Pobierz klucz z https://platform.openai.com/api-keys
 
 ## Running the Application
 
@@ -95,6 +132,72 @@ Once the setup is complete, run the Streamlit application:
 ```bash
 uv run streamlit run src/app.py
 ```
+
+### Using the Application
+
+1. **Configure Stock Analysis:**
+   - Enter a stock symbol (e.g., `AAPL`, `NVDA`)
+   - Select time period for chart data (1d, 5d, 1mo, 6mo, ytd, 1y, 5y, max)
+   - Choose chart type (Candlestick or Line)
+
+2. **Select Analysis Mode:**
+   - **Sequential Mode** (default): Linear execution with 4 specialists - faster and more deterministic
+   - **Group Chat Mode**: Hierarchical debate with 6 agents - longer execution but more thorough analysis with risk assessment
+
+3. **Choose LLM Provider:**
+   - **Gemini** (default): Fast API, good quality for financial analysis
+   - **OpenAI**: Alternative provider, switch anytime from dropdown
+
+4. **Generate Analysis:**
+   - Click "Update" to fetch and display stock chart with current metrics
+   - Click "Generate report" to run multi-agent analysis
+   - View comprehensive investment report with mode and provider information
+
+## Analysis Modes Comparison
+
+| Feature | Sequential Mode | Group Chat Mode |
+|---------|-----------------|-----------------|
+| **Agents** | 4 specialists | 6 agents (specialists + debate) |
+| **Execution** | Linear with dependencies | Hierarchical with parallel tasks |
+| **Execution Time** | Faster (typically 1-3 min) | Slower (typically 3-8 min) |
+| **Analysis Type** | Direct synthesis | Debate with risk assessment |
+| **Risk Focus** | Integrated | Dedicated Sceptic agent |
+| **Data Validation** | Implicit | Explicit verification by Trust Agent |
+| **Recommendation** | Direct from Reporter | Consensus after group debate |
+| **Best For** | Quick decisions, lower cost | Thorough analysis, risk-averse investors |
+
+## Provider Comparison
+
+| Feature | Gemini | OpenAI |
+|---------|--------|--------|
+| **Speed** | Very fast | Fast |
+| **Sequential Model** | gemini-2.0-flash-lite | gpt-4o-mini |
+| **Group Chat Model** | gemini-2.0-flash | gpt-4o |
+| **Cost** | Moderate | Higher |
+| **Availability** | Global | Global |
+
+## Configuration Guide
+
+### Environment Variables (`.env` file)
+
+```dotenv
+# Reddit API (optional, needed for sentiment analysis)
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+REDDIT_USER_AGENT=your_user_agent_string
+
+# LLM Configuration (required)
+LLM_PROVIDER=gemini                    # Choose: "gemini" or "openai"
+GEMINI_API_KEY=your_gemini_api_key    # Get from: https://aistudio.google.com/app/apikey
+OPENAI_API_KEY=your_openai_api_key    # Get from: https://platform.openai.com/api-keys
+```
+
+### Changing Default Provider
+
+To change the default LLM provider:
+1. Edit `.env` file and change `LLM_PROVIDER` value
+2. Or select different provider from UI dropdown (this overrides `.env` setting temporarily)
+
 ## Screenshots
 ### Main Interface
 ![Main Interface](screenshots/main.png)
@@ -134,7 +237,7 @@ You can find more example reports (like `AAPL.md`) and raw data outputs (like `A
 This analysis is for informational purposes only and is not financial or investment advice. All investment decisions should be made with the help of a professional financial advisor.
 
 ## Future Enhancements
-* Implement additional data sources for sentiment analysis (e.g., Twitter).
+* Implement additional data sources for sentiment analysis (e.g., Twitter/X).
 * Expand the range of technical indicators available for customization.
 * Implement user accounts and history of generated reports.
 * Option to export reports to PDF.

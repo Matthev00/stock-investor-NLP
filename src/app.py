@@ -7,6 +7,7 @@ import yfinance as yf
 from markdown_it import MarkdownIt
 
 from src.crews import StockAnalysisCrewFactory, CrewMode
+from src.config import get_default_provider, LLMProvider
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -85,6 +86,8 @@ if "report" not in st.session_state:
     st.session_state.report = None
 if "report_mode" not in st.session_state:
     st.session_state.report_mode = None
+if "report_provider" not in st.session_state:
+    st.session_state.report_provider = None
 if "execution_time" not in st.session_state:
     st.session_state.execution_time = None
 
@@ -98,14 +101,19 @@ ticker = st.sidebar.text_input("Stock symbol (eg. AAPL)")
 time_period = st.sidebar.selectbox("Time period", [period["period"] for period in INTERVAL_MAPPING])
 chart_type = st.sidebar.selectbox("Chart Type", ["Candlestick", "Line"])
 
+llm_provider = st.sidebar.selectbox(
+    "LLM Provider",
+    options=[provider.value for provider in LLMProvider],
+    index=0 if get_default_provider().lower() == "gemini" else 1,
+    format_func=lambda x: "Gemini" if x == "gemini" else "OpenAI",
+)
+
 crew_mode = st.sidebar.radio(
     "Analysis Mode",
     options=[CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value],
     format_func=lambda x: "Sequential" if x == CrewMode.SEQUENTIAL.value else "Group Chat",
     horizontal=True
 )
-
-api_key = st.sidebar.text_input("Gemini API key", type="password")
 sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
 if sidebar_col1.button("Update", type="primary", use_container_width=True):
@@ -147,14 +155,18 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
 
 if sidebar_col2.button("Generate report", type="primary", use_container_width=True):
     with st.spinner("Running multi-agent analysis…"):
-        crew = StockAnalysisCrewFactory.create(crew_mode, api_key)
-        result = crew.run(ticker)
+        try:
+            crew = StockAnalysisCrewFactory.create(crew_mode, llm_provider)
+            result = crew.run(ticker)
 
-        report_md = format_markdown(str(result["report"]))
-        report_cleaned = escape_markdown_specials(report_md)
-        st.session_state.report = report_cleaned
-        st.session_state.report_mode = result["mode"]
-        st.session_state.execution_time = result["execution_time"]
+            report_md = format_markdown(str(result["report"]))
+            report_cleaned = escape_markdown_specials(report_md)
+            st.session_state.report = report_cleaned
+            st.session_state.report_mode = result["mode"]
+            st.session_state.report_provider = result["provider"]
+            st.session_state.execution_time = result["execution_time"]
+        except ValueError as e:
+            st.error(f"Configuration Error: {str(e)}\n\nPlease ensure API keys are set in your .env file.")
 
 if st.session_state.stock_metrics is not None:
     last_close = st.session_state.stock_metrics["last_close"]
@@ -181,11 +193,14 @@ if st.session_state.report is not None:
     st.header("Investment Report")
     
     # Display metadata
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         mode_label = "Sequential (Original)" if st.session_state.report_mode == CrewMode.SEQUENTIAL.value else "Group Chat (FinDebate)"
         st.metric("Analysis Mode", mode_label)
     with col2:
+        provider_label = "Gemini" if st.session_state.report_provider == "gemini" else "OpenAI"
+        st.metric("LLM Provider", provider_label)
+    with col3:
         st.metric("Execution Time", f"{st.session_state.execution_time:.1f}s")
     
     st.divider()

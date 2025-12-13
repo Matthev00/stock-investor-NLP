@@ -9,16 +9,17 @@ from src.crews.agents_definitions import (
     create_reporter_agent,
 )
 from src.crews.tasks_definitions import create_task, TaskType
+from src.config import LLMConfig
 
 
 class SequentialStockAnalysisCrew:
     """Sequential execution mode - agents work in linear order with dependencies."""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
+    def __init__(self, config: LLMConfig):
+        self.config = config
         self.llm = LLM(
-            model="gemini/gemini-2.0-flash-lite",
-            api_key=self.api_key,
+            model=self.config.model_sequential,
+            api_key=self.config.api_key,
             temperature=0.2,
         )
         self._initialize_agents_and_tasks()
@@ -50,7 +51,7 @@ class SequentialStockAnalysisCrew:
             stock_symbol: Stock ticker symbol
 
         Returns:
-            Dictionary with mode, execution_time, and report
+            Dictionary with mode, provider, execution_time, and report
         """
         start_time = time()
         result = self.crew.kickoff(inputs={"stock_symbol": stock_symbol.upper()})
@@ -58,6 +59,7 @@ class SequentialStockAnalysisCrew:
 
         return {
             "mode": "sequential",
+            "provider": self.config.provider.value,
             "execution_time": execution_time,
             "report": str(result),
         }
