@@ -9,7 +9,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    Image,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -95,17 +94,15 @@ class PDFReportExporter:
         self._add_title_section(story, ticker)
         self._add_metadata_section(story, mode, provider, execution_time)
 
+        self._add_report_content(story, report_text)
+
         if metrics:
             self._add_metrics_table(story, metrics)
 
         if indicators and any(indicators.values()):
             self._add_indicators_section(story, indicators)
-
+        
         self._add_chart_image(story, fig)
-
-        story.append(PageBreak())
-
-        self._add_report_content(story, report_text)
 
         doc.build(story)
         pdf_buffer.seek(0)
@@ -169,24 +166,17 @@ class PDFReportExporter:
 
 
     def _add_chart_image(self, story: list, fig: go.Figure):
-        """Add chart as embedded image."""
-        if fig is None:
-            error_text = "<i>Chart could not be embedded: Chart not generated</i>"
-            story.append(Paragraph(error_text, self.styles["Normal"]))
-            story.append(Spacer(1, 0.2 * inch))
-            return
-            
-        try:
-            chart_img_buffer = BytesIO()
-            fig.write_image(chart_img_buffer, format="png", width=700, height=500)
-            chart_img_buffer.seek(0)
-            chart_img = Image(chart_img_buffer, width=6 * inch, height=4 * inch)
-            story.append(chart_img)
-            story.append(Spacer(1, 0.2 * inch))
-        except Exception as e:
-            error_text = f"<i>Chart could not be embedded: {str(e)}</i>"
-            story.append(Paragraph(error_text, self.styles["Normal"]))
-            story.append(Spacer(1, 0.2 * inch))
+        """Add chart reference text to PDF."""
+        story.append(Paragraph("<b>Interactive Chart</b>", self.styles["Heading2"]))
+        story.append(Spacer(1, 0.1 * inch))
+        
+        chart_text = (
+            "<i>A detailed interactive chart with price candlesticks/lines and selected technical indicators "
+            "(SMA, EMA, Bollinger Bands) can be viewed in the web application. "
+            "Click the 'Update' button in the sidebar to generate and view the live chart.</i>"
+        )
+        story.append(Paragraph(chart_text, self.styles["Normal"]))
+        story.append(Spacer(1, 0.2 * inch))
 
     def _add_report_content(self, story: list, report_text: str):
         """Add report content section."""

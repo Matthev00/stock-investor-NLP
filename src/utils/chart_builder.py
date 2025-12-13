@@ -25,7 +25,6 @@ class ChartBuilder:
         """Load and process stock data."""
         period_config = ChartBuilder.PERIOD_MAPPING.get(time_period, ChartBuilder.PERIOD_MAPPING["1mo"])
         
-        # Download data
         data = yf.download(
             ticker,
             period=period_config["period"],
@@ -34,8 +33,11 @@ class ChartBuilder:
             progress=False,
         )
         
-        # Process data
-        data = data.xs(ticker, axis=1, level=1) if isinstance(data.columns, pd.MultiIndex) else data
+        # Handle MultiIndex columns (multiple tickers) vs single ticker
+        if isinstance(data.columns, pd.MultiIndex):
+            data = data.xs(ticker, axis=1, level=1)
+        
+        # Timezone handling
         if data.index.tzinfo is None:
             data.index = data.index.tz_localize("UTC")
         data.index = data.index.tz_convert("US/Eastern")
@@ -98,7 +100,6 @@ class ChartBuilder:
                 )
             )
         
-        # Add moving averages
         for ma_col in ["SMA_20", "SMA_50", "SMA_200", "EMA_20", "EMA_50"]:
             if ma_col in data.columns:
                 indicator_name = ma_col.replace("_", " ")
@@ -113,7 +114,6 @@ class ChartBuilder:
                         )
                     )
         
-        # Add Bollinger Bands
         if "BB_Upper" in data.columns and indicators.get("Bollinger Bands"):
             fig.add_trace(
                 go.Scatter(
@@ -160,5 +160,8 @@ class ChartBuilder:
             data = ChartBuilder.add_indicators(data, indicators)
             fig = ChartBuilder.build_chart(data, ticker, indicators, time_period, chart_type)
             return fig
-        except Exception:
+        except Exception as e:
+            print(f"Chart generation error: {e}")
+            import traceback
+            traceback.print_exc()
             return None

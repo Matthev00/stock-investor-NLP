@@ -174,7 +174,7 @@ if st.session_state.stock_metrics is not None:
     col3.metric("Volume", f"{volume:,}")
 
 if st.session_state.stock_fig is not None:
-    st.plotly_chart(st.session_state.stock_fig, use_container_width=True)
+    st.plotly_chart(st.session_state.stock_fig, use_container_width=True, key="chart_display")
 
 if st.session_state.report is not None:
     st.header("Investment Report")
