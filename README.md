@@ -37,6 +37,7 @@ The final output is a cohesive investment report in Markdown format, offering an
     * **Technical Analysis:** Calculates and interprets indicators like SMAs, EMAs, MACD, RSI, Bollinger Bands, Stochastics, ATR, OBV, and more. Identifies trends, patterns, support/resistance levels.
     * **Fundamental Analysis:** Assesses financial health, profitability, growth prospects, valuation (P/E, P/S, D/E, ROE, etc.), and overall intrinsic value.
 * **Dynamic Charting:** Displays stock price charts (candlestick or line) with configurable time periods using Plotly.
+* **PDF Export:** Download complete investment reports with charts and metrics in professional PDF format.
 
 ## How it Works (Architecture)
 
@@ -86,6 +87,7 @@ The platform operates using a multi-agent system orchestrated by CrewAI with two
 * **Web Interface & Visualization:**
     * Streamlit (`>=1.45.1`)
     * Plotly (`>=6.1.0`)
+    * ReportLab (`>=4.0.0`) (for PDF generation)
 * **Configuration & Environment:**
     * python-dotenv (`>=1.0.0`) (for environment variable management)
 
@@ -139,6 +141,10 @@ uv run streamlit run src/app.py
    - Enter a stock symbol (e.g., `AAPL`, `NVDA`)
    - Select time period for chart data (1d, 5d, 1mo, 6mo, ytd, 1y, 5y, max)
    - Choose chart type (Candlestick or Line)
+   - **Select Technical Indicators** (expandable section):
+     - **Moving Averages:** SMA 20/50/200, EMA 20/50
+     - **Volatility:** Bollinger Bands
+   - Click "Update" to fetch data and display chart with selected indicators
 
 2. **Select Analysis Mode:**
    - **Sequential Mode** (default): Linear execution with 4 specialists - faster and more deterministic
@@ -152,6 +158,7 @@ uv run streamlit run src/app.py
    - Click "Update" to fetch and display stock chart with current metrics
    - Click "Generate report" to run multi-agent analysis
    - View comprehensive investment report with mode and provider information
+   - **Export Report:** Click "Download Report as PDF" to export the full analysis with chart and metrics
 
 ## Analysis Modes Comparison
 
@@ -188,6 +195,21 @@ To change the default LLM provider:
 1. Edit `.env` file and change `LLM_PROVIDER` value
 2. Or select different provider from UI dropdown (this overrides `.env` setting temporarily)
 
+## Technical Indicators Guide
+
+The platform supports the following technical indicators for chart analysis:
+
+### Moving Averages
+- **SMA (Simple Moving Average):** 20, 50, 200 periods - identifies trends
+- **EMA (Exponential Moving Average):** 20, 50 periods - more responsive to recent prices
+
+### Volatility Indicators
+- **Bollinger Bands:** Shows price range and volatility
+  - Upper/Lower bands indicate extremes
+  - Squeeze indicates low volatility
+
+All indicators can be toggled on/off in the "Technical Indicators" section of the sidebar when updating charts.
+
 ## Screenshots
 ### Main Interface
 ![Main Interface](screenshots/main.png)
@@ -218,16 +240,17 @@ The sentiment surrounding NVDA is cautiously optimistic. Positive sentiment is f
 You can find more example reports (like `AAPL.md`) and raw data outputs (like `AAPL_news.json`) in the `/results` directory.
 
 
-
-## Authors
-* **Daniel Machniak**
-* **Rafał Kowalczuk**
-
 ## Disclaimer
 This analysis is for informational purposes only and is not financial or investment advice. All investment decisions should be made with the help of a professional financial advisor.
 
 ## Future Enhancements
 * Implement additional data sources for sentiment analysis (e.g., Twitter/X).
-* Expand the range of technical indicators available for customization.
 * Implement user accounts and history of generated reports.
-* Option to export reports to PDF.
+* Support for cryptocurrency and commodity analysis.
+* Custom agent configurations and roles.
+* Batch analysis for multiple stocks.
+* Real-time price alerts and notifications.
+* Support for additional LLM providers (Claude, Llama, etc.).
+* Comparison mode for analyzing multiple stocks side-by-side.
+* Advanced technical analysis with custom indicator parameters.
+* Save and load custom indicator presets.

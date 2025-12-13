@@ -2,12 +2,13 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-import talib as ta
-import yfinance as yf
+from datetime import datetime
 from markdown_it import MarkdownIt
 
 from src.crews import StockAnalysisCrewFactory, CrewMode
 from src.config import get_default_provider, LLMProvider
+from src.utils.pdf_exporter import PDFReportExporter
+from src.utils.chart_builder import ChartBuilder
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -19,16 +20,6 @@ INTERVAL_MAPPING = [
     {"period": "5y", "interval": "1wk"},
     {"period": "max", "interval": "1wk"},
 ]
-
-
-def process_data(ticker, data):
-    data = data.xs(ticker, axis=1, level=1)
-    if data.index.tzinfo is None:
-        data.index = data.index.tz_localize("UTC")
-    data.index = data.index.tz_convert("US/Eastern")
-    data.reset_index(inplace=True)
-    data.rename(columns={"Date": "Datetime"}, inplace=True)
-    return data
 
 
 # Calculate basic metrics from the stock data
@@ -44,12 +35,9 @@ def calculate_metrics(data):
 
 
 # Add simple moving average (SMA) and exponential moving average (EMA) indicators
-def add_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
-    # data["SMA_20"] = ta.trend.sma_indicator(data["Close"], window=20)
-    # data["EMA_20"] = ta.trend.ema_indicator(data["Close"], window=20)
-    data["SMA_20"] = ta.SMA(data["Close"].to_numpy().flatten(), timeperiod=20)
-    data["EMA_20"] = ta.EMA(data["Close"].to_numpy().flatten(), timeperiod=20)
-    return data
+def add_technical_indicators(data: pd.DataFrame, indicators: dict) -> pd.DataFrame:
+    """Add selected technical indicators to the dataframe."""
+    return ChartBuilder.add_indicators(data, indicators)
 
 
 def format_markdown(text):
@@ -69,13 +57,8 @@ def escape_markdown_specials(text: str) -> str:
 
 
 def load_stock_data(symbol: str, period: dict) -> pd.DataFrame:
-    return yf.download(
-        symbol,
-        period=period["period"],
-        interval=period["interval"],
-        auto_adjust=True,
-        progress=False,
-    )
+    """Load and process stock data - wrapper for ChartBuilder."""
+    return ChartBuilder.load_and_process_data(symbol, period["period"])
 
 
 if "stock_fig" not in st.session_state:
@@ -90,6 +73,8 @@ if "report_provider" not in st.session_state:
     st.session_state.report_provider = None
 if "execution_time" not in st.session_state:
     st.session_state.execution_time = None
+if "selected_indicators" not in st.session_state:
+    st.session_state.selected_indicators = {}
 
 
 st.set_page_config("Stock Investment Report", layout="wide")
@@ -114,11 +99,27 @@ crew_mode = st.sidebar.radio(
     format_func=lambda x: "Sequential" if x == CrewMode.SEQUENTIAL.value else "Group Chat",
     horizontal=True
 )
+
+st.sidebar.subheader("📊 Technical Indicators")
+with st.sidebar.expander("Select Indicators", expanded=True):
+    st.write("**Moving Averages**")
+    indicators = {
+        "SMA 20": st.checkbox("SMA 20", value=True),
+        "SMA 50": st.checkbox("SMA 50", value=False),
+        "SMA 200": st.checkbox("SMA 200", value=False),
+        "EMA 20": st.checkbox("EMA 20", value=False),
+        "EMA 50": st.checkbox("EMA 50", value=False),
+    }
+    
+    st.write("**Volatility**")
+    indicators.update({
+        "Bollinger Bands": st.checkbox("Bollinger Bands", value=False),
+    })
+    
 sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
 if sidebar_col1.button("Update", type="primary", use_container_width=True):
     data = load_stock_data(ticker, next(filter(lambda x: x["period"] == time_period, INTERVAL_MAPPING)))
-    data = process_data(ticker, data)
 
     last_close, change, pct_change, high, low, volume = calculate_metrics(data)
     st.session_state.stock_metrics = {
@@ -130,28 +131,14 @@ if sidebar_col1.button("Update", type="primary", use_container_width=True):
         "volume": volume,
     }
 
-    fig = go.Figure()
-    if chart_type == "Candlestick":
-        fig.add_trace(
-            go.Candlestick(
-                x=data["Datetime"],
-                open=data["Open"],
-                high=data["High"],
-                low=data["Low"],
-                close=data["Close"],
-            )
-        )
-    else:
-        fig = px.line(data, x="Datetime", y="Close")
+    # Add selected technical indicators
+    data = add_technical_indicators(data, indicators)
 
-    fig.update_layout(
-        title=f"{ticker} {time_period.upper()} Chart",
-        xaxis_title="Time",
-        yaxis_title="Price (USD)",
-        height=600,
-    )
+    # Build chart using ChartBuilder
+    fig = ChartBuilder.build_chart(data, ticker, indicators, time_period, chart_type)
 
     st.session_state.stock_fig = fig
+    st.session_state.selected_indicators = indicators
 
 if sidebar_col2.button("Generate report", type="primary", use_container_width=True):
     with st.spinner("Running multi-agent analysis…"):
@@ -187,7 +174,7 @@ if st.session_state.stock_metrics is not None:
     col3.metric("Volume", f"{volume:,}")
 
 if st.session_state.stock_fig is not None:
-    st.plotly_chart(st.session_state.stock_fig, use_container_width=True)
+    st.plotly_chart(st.session_state.stock_fig, use_container_width=True, key="chart_display")
 
 if st.session_state.report is not None:
     st.header("Investment Report")
@@ -202,6 +189,29 @@ if st.session_state.report is not None:
         st.metric("LLM Provider", provider_label)
     with col3:
         st.metric("Execution Time", f"{st.session_state.execution_time:.1f}s")
+    
+    st.divider()
+    
+    # Export to PDF button
+    exporter = PDFReportExporter()
+    pdf_buffer = exporter.export(
+        ticker=ticker,
+        report_text=st.session_state.report,
+        fig=st.session_state.stock_fig,
+        metrics=st.session_state.stock_metrics,
+        indicators=st.session_state.selected_indicators,
+        mode=st.session_state.report_mode,
+        provider=st.session_state.report_provider,
+        execution_time=st.session_state.execution_time
+    )
+    
+    st.download_button(
+        label="📥 Download Report as PDF",
+        data=pdf_buffer,
+        file_name=f"{ticker.upper()}_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+        mime="application/pdf",
+        key="download_pdf_btn"
+    )
     
     st.divider()
     st.markdown(st.session_state.report)
