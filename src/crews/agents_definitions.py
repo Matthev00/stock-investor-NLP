@@ -5,6 +5,8 @@ from src.tools.yahoo_analysis_tool import fetch_yahoo_analysis
 from src.tools.yahoo_fundamental_analysis_tool import analyse_fundamentals
 from src.tools.yahoo_news_tool import fetch_yahoo_news
 from src.tools.yahoo_technical_analysis_tool import analyse_technical_indicators
+from src.tools.finnhub_sentiment_tool import analyse_finnhub_sentiment
+from src.tools.alphavantage_tools import analyse_alphavantage_sentiment
 
 
 def create_researcher_agent(llm: LLM) -> Agent:
@@ -14,7 +16,7 @@ def create_researcher_agent(llm: LLM) -> Agent:
         goal="Gather and analyze comprehensive data about {stock_symbol}",
         backstory="With a Ph.D. in Financial Economics and 15 years of experience in equity research, you're known for meticulous data collection and insightful analysis.",
         llm=llm,
-        tools=[analyse_reddit, fetch_yahoo_news, fetch_yahoo_analysis],
+        tools=[analyse_finnhub_sentiment, analyse_alphavantage_sentiment, fetch_yahoo_news, fetch_yahoo_analysis],
         verbose=True,
         memory=True,
         allow_code_execution=False,

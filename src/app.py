@@ -9,6 +9,7 @@ from src.crews import StockAnalysisCrewFactory, CrewMode
 from src.config import get_default_provider, LLMProvider
 from src.utils.pdf_exporter import PDFReportExporter
 from src.utils.chart_builder import ChartBuilder
+from src.utils.report_evaluator import ReportEvaluator
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -75,7 +76,8 @@ if "execution_time" not in st.session_state:
     st.session_state.execution_time = None
 if "selected_indicators" not in st.session_state:
     st.session_state.selected_indicators = {}
-
+if "evaluation_results" not in st.session_state:
+    st.session_state.evaluation_results = None
 
 st.set_page_config("Stock Investment Report", layout="wide")
 st.title("📈 Stock Investment Analysis Platform")
@@ -204,14 +206,154 @@ if st.session_state.report is not None:
         provider=st.session_state.report_provider,
         execution_time=st.session_state.execution_time
     )
+
+    col_pdf, col_eval = st.columns(2)
     
-    st.download_button(
-        label="📥 Download Report as PDF",
-        data=pdf_buffer,
-        file_name=f"{ticker.upper()}_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-        mime="application/pdf",
-        key="download_pdf_btn"
-    )
+    with col_pdf:
+        st.download_button(
+            label="📥 Download Report as PDF",
+            data=pdf_buffer,
+            file_name=f"{ticker.upper()}_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            mime="application/pdf",
+            key="download_pdf_btn"
+        )
+    
+    with col_eval:
+        if st.button("📊 Evaluate Report Quality", type="secondary", use_container_width=True):
+            with st.spinner("Evaluating report quality..."):
+                evaluator = ReportEvaluator()
+                st.session_state.evaluation_results = evaluator.evaluate(
+                    st.session_state.report,
+                    ticker.upper()
+                )
+
+    st.divider()
+    
+    # Display evaluation results if available
+    if st.session_state.evaluation_results is not None:
+        eval_data = st.session_state.evaluation_results
+        
+        st.subheader("📊 Report Quality Evaluation")
+        
+        # Overall score display
+        score_col1, score_col2, score_col3 = st.columns([1, 1, 1])
+        
+        with score_col1:
+            score = eval_data['overall_score']
+            grade = eval_data['grade']
+            
+            # Color based on grade
+            if grade == 'A':
+                score_color = "🟢"
+            elif grade == 'B':
+                score_color = "🟡"
+            elif grade == 'C':
+                score_color = "🟠"
+            else:
+                score_color = "🔴"
+            
+            st.metric("Overall Quality Score", f"{score:.1f}/100", delta=f"Grade: {grade}")
+            st.markdown(f"{score_color} **Quality Level:** {grade}")
+        
+        with score_col2:
+            best_dim = max(eval_data['dimension_scores'].items(), key=lambda x: x[1])
+            st.metric("Strongest Dimension", best_dim[0].replace('_', ' ').title(), f"{best_dim[1]:.1f}/100")
+        
+        with score_col3:
+            worst_dim = min(eval_data['dimension_scores'].items(), key=lambda x: x[1])
+            st.metric("Needs Improvement", worst_dim[0].replace('_', ' ').title(), f"{worst_dim[1]:.1f}/100")
+        
+        st.divider()
+        
+        # Dimension scores with visualization
+        st.subheader("Quality Dimensions")
+        
+        dim_scores = eval_data['dimension_scores']
+        
+        # Create radar chart data
+        import plotly.graph_objects as go
+        
+        categories = [k.replace('_', ' ').title() for k in dim_scores.keys()]
+        values = list(dim_scores.values())
+        
+        fig_radar = go.Figure()
+        
+        fig_radar.add_trace(go.Scatterpolar(
+            r=values,
+            theta=categories,
+            fill='toself',
+            name='Score',
+            line_color='rgb(31, 119, 180)',
+            fillcolor='rgba(31, 119, 180, 0.3)'
+        ))
+        
+        # Add target line at 70
+        fig_radar.add_trace(go.Scatterpolar(
+            r=[70] * len(categories),
+            theta=categories,
+            mode='lines',
+            name='Target (70)',
+            line=dict(color='green', dash='dash', width=2)
+        ))
+        
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, 100]
+                )
+            ),
+            showlegend=True,
+            title="Quality Dimensions Radar Chart",
+            height=400
+        )
+        
+        st.plotly_chart(fig_radar, use_container_width=True)
+        
+        # Detailed metrics in expandable sections
+        with st.expander("📋 Detailed Metrics", expanded=False):
+            metrics_tabs = st.tabs([
+                "Structure",
+                "Data Richness",
+                "Professional Sophistication",
+                "Actionability",
+                "Sentiment"
+            ])
+            
+            with metrics_tabs[0]:
+                st.json(eval_data['metrics']['structure'])
+            
+            with metrics_tabs[1]:
+                st.json(eval_data['metrics']['data_richness'])
+            
+            with metrics_tabs[2]:
+                st.json(eval_data['metrics']['sophistication'])
+            
+            with metrics_tabs[3]:
+                st.json(eval_data['metrics']['actionability'])
+            
+            with metrics_tabs[4]:
+                st.json(eval_data['metrics']['sentiment'])
+        
+        # Recommendations
+        if eval_data['recommendations']:
+            st.subheader("💡 Improvement Recommendations")
+            
+            for i, rec in enumerate(eval_data['recommendations'], 1):
+                priority_emoji = {
+                    'Critical': '🔴',
+                    'High': '🟠',
+                    'Medium': '🟡',
+                    'Low': '🟢',
+                    'Info': 'ℹ️'
+                }.get(rec['priority'], 'ℹ️')
+                
+                with st.container():
+                    st.markdown(f"**{priority_emoji} {rec['category']} ({rec['priority']} Priority)**")
+                    st.markdown(f"*Issue:* {rec['issue']}")
+                    st.markdown(f"*Suggestion:* {rec['suggestion']}")
+                    if i < len(eval_data['recommendations']):
+                        st.divider()
     
     st.divider()
     st.markdown(st.session_state.report)
