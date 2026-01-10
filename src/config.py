@@ -55,8 +55,8 @@ class LLMConfig:
             self.model_group_chat = "gemini/gemini-2.0-flash"
             self.temperature = 0.5
         elif self.provider == LLMProvider.OPENAI:
-            self.model_sequential = "gpt-4o-mini"
-            self.model_group_chat = "gpt-4o"
+            self.model_sequential = "gpt-4.1"
+            self.model_group_chat = "gpt-4.1"
             self.temperature = 0.5
 
 

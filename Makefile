@@ -47,7 +47,7 @@ create_environment:
 ## Run streamlit app
 .PHONY: run
 run:
-	streamlit run src/app.py
+	uv run streamlit run src/app.py
 
 
 #################################################################################
