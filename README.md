@@ -226,7 +226,7 @@ All indicators can be toggled on/off in the "Technical Indicators" section of th
 
 ### Evaluate Rport Quality
 
-
+![Evaluate Section](screenshots/evaluate.png)
 
 
 ## Example Report Output
