@@ -1,8 +1,7 @@
-import json
-
 from crewai.tools import tool
 
 from src.services.yahoo_technical_analyser import YahooTechnicalAnalyser
+from src.utils import dumps
 
 
 @tool
@@ -28,4 +27,4 @@ def analyse_technical_indicators(ticker: str, period: str = "1y") -> str:
     """
     analyser = YahooTechnicalAnalyser(ticker)
     data: dict = analyser.get_technical_data(period=period)
-    return json.dumps(data, indent=2)
+    return dumps(data, indent=2)

@@ -1,4 +1,4 @@
-import json
+from src.utils import dumps
 
 from crewai.tools import tool
 
@@ -24,4 +24,4 @@ def fetch_yahoo_analysis(ticker: str) -> str:
     fetcher = YahooAnalysisFetcher(ticker)
     analysis = fetcher.fetch_analysis()
 
-    return json.dumps(analysis, indent=2)
+    return dumps(analysis, indent=2)

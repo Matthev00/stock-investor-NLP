@@ -1,7 +1,10 @@
+import logging
+
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 torch.classes.__path__ = []
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 
 class SentimentAnalyser:

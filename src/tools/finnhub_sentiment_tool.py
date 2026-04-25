@@ -1,11 +1,8 @@
-import json
+from src.utils import dumps
 
 from crewai.tools import tool
 
 from src.services.finnhub.finnhub_sentiment import FinnhubSentimentAnalyser
-
-
-analyser = FinnhubSentimentAnalyser()
 
 
 @tool
@@ -55,16 +52,17 @@ def analyse_finnhub_sentiment(
         }
     """
     try:
+        analyser = FinnhubSentimentAnalyser()
         sentiment_data = analyser.analyse(
             symbol=stock_symbol.upper(),
             days_back=days_back,
             news_count=news_count
         )
-        return json.dumps(sentiment_data, indent=2)
+        return dumps(sentiment_data, indent=2)
     except Exception as e:
         error_response = {
             "error": str(e),
             "message": f"Failed to analyze sentiment for {stock_symbol}. "
                       "Please check if the stock symbol is valid and Finnhub API key is configured."
         }
-        return json.dumps(error_response, indent=2)
+        return dumps(error_response, indent=2)

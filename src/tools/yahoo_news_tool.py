@@ -1,4 +1,4 @@
-import json
+from src.utils import dumps
 
 from crewai.tools import tool
 
@@ -19,4 +19,4 @@ def fetch_yahoo_news(stock_symbol: str, count: int = 10) -> str:
     """
     news_fetcher = YahooNewsFetcher(stock_symbol)
     news_articles = news_fetcher.fetch_news(count=count)
-    return json.dumps(news_articles, indent=2)
+    return dumps(news_articles, indent=2)

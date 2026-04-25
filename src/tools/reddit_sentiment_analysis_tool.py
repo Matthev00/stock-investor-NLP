@@ -1,4 +1,4 @@
-import json
+from src.utils import dumps
 
 from crewai.tools import tool
 
@@ -22,4 +22,4 @@ def analyse_reddit(subreddits: list, stock: str, post_limit=50, days=30) -> str:
         str: A JSON string containing the count of 'positive', 'neutral', and 'negative' sentiment results.
     """
     sentiments = analyser.analyse(subreddits, stock, post_limit, days)
-    return json.dumps(sentiments, indent=2)
+    return dumps(sentiments, indent=2)

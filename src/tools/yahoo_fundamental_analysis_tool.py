@@ -1,8 +1,7 @@
-import json
-
 from crewai.tools import tool
 
 from src.services.yahoo_fundamental_analyser import YahooFundamentalAnalyser
+from src.utils import dumps
 
 
 @tool
@@ -34,4 +33,4 @@ def analyse_fundamentals(ticker: str) -> str:
     fetcher = YahooFundamentalAnalyser(ticker)
     analysis = fetcher.fetch_fundamentals()
 
-    return json.dumps(analysis, indent=2)
+    return dumps(analysis, indent=2)

@@ -1,4 +1,4 @@
-import json
+from src.utils import dumps
 
 from crewai.tools import tool
 
@@ -72,7 +72,7 @@ def analyse_alphavantage_sentiment(
             'summary': client.get_market_sentiment_summary(stock_symbol)
         }
         
-        return json.dumps(result, indent=2)
+        return dumps(result, indent=2)
         
     except Exception as e:
         error_response = {
@@ -80,7 +80,7 @@ def analyse_alphavantage_sentiment(
             "message": f"Failed to analyze data for {stock_symbol} using Alpha Vantage. "
                       "Please check if the stock symbol is valid and API key is configured."
         }
-        return json.dumps(error_response, indent=2)
+        return dumps(error_response, indent=2)
 
 
 @tool
@@ -114,10 +114,10 @@ def get_company_fundamentals_alpha(stock_symbol: str) -> str:
     """
     try:
         company_data = client.get_company_overview(stock_symbol)
-        return json.dumps(company_data, indent=2)
+        return dumps(company_data, indent=2)
     except Exception as e:
         error_response = {
             "error": str(e),
             "message": f"Failed to fetch fundamentals for {stock_symbol}."
         }
-        return json.dumps(error_response, indent=2)
+        return dumps(error_response, indent=2)
