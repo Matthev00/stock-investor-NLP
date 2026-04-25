@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -78,10 +81,31 @@ if "selected_indicators" not in st.session_state:
     st.session_state.selected_indicators = {}
 if "evaluation_results" not in st.session_state:
     st.session_state.evaluation_results = None
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
 st.set_page_config("Stock Investment Report", layout="wide")
+
+if not st.session_state.authenticated:
+    st.title("🔐 Stock Investment Analysis Platform")
+    st.subheader("Login")
+    password = st.text_input("Password", type="password")
+    if st.button("Login", type="primary"):
+        expected = st.secrets["password_hash"]
+        entered = hashlib.sha256(password.encode()).hexdigest()
+        if hmac.compare_digest(entered, expected):
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    st.stop()
+
 st.title("📈 Stock Investment Analysis Platform")
 
+
+if st.sidebar.button("Logout", type="secondary"):
+    st.session_state.authenticated = False
+    st.rerun()
 
 st.sidebar.header("Configuration")
 ticker = st.sidebar.text_input("Stock symbol (eg. AAPL)")
