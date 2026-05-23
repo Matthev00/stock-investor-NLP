@@ -20,7 +20,7 @@ class SequentialStockAnalysisCrew:
         self.llm = LLM(
             model=self.config.model_sequential,
             api_key=self.config.api_key,
-            temperature=0.2,
+            temperature=self.config.temperature,
         )
         self._initialize_agents_and_tasks()
 
