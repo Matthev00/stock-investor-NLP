@@ -339,7 +339,18 @@ if st.session_state.report is not None:
         with score_col3:
             worst_dim = min(eval_data['dimension_scores'].items(), key=lambda x: x[1])
             st.metric("Needs Improvement", worst_dim[0].replace('_', ' ').title(), f"{worst_dim[1]:.1f}/100")
-        
+
+        st.markdown("**Dimension Scores**")
+        dim_cols = st.columns(len(eval_data['dimension_scores']))
+        for col, (dim_name, dim_val) in zip(dim_cols, eval_data['dimension_scores'].items()):
+            delta_color = "normal" if dim_val >= 70 else "inverse"
+            col.metric(
+                label=dim_name.replace('_', ' ').title(),
+                value=f"{dim_val:.0f} / 100",
+                delta="✓ OK" if dim_val >= 70 else "⚠ Low",
+                delta_color=delta_color,
+            )
+
         st.divider()
         
         # Dimension scores with visualization
@@ -382,7 +393,7 @@ if st.session_state.report is not None:
             ),
             showlegend=True,
             title="Quality Dimensions Radar Chart",
-            height=400
+            height=600
         )
         
         st.plotly_chart(fig_radar, use_container_width=True)
