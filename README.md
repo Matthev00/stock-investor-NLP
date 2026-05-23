@@ -214,6 +214,83 @@ The platform supports the following technical indicators for chart analysis:
 
 All indicators can be toggled on/off in the "Technical Indicators" section of the sidebar when updating charts.
 
+## Running Batch Experiments
+
+The platform includes a CLI experiment runner for systematic evaluation across multiple tickers, LLM configurations, and runs.
+
+### Quick Start
+
+```bash
+# Dry run — preview what would be executed without making any API calls
+uv run python run_experiment.py --dry-run
+
+# Full experiment using the default config
+uv run python run_experiment.py
+
+# Custom config file
+uv run python run_experiment.py --config my_config.yaml
+
+# Single ticker only (must exist in the config tickers list)
+uv run python run_experiment.py --ticker AAPL
+```
+
+### Configuration (`experiment_config.yaml`)
+
+```yaml
+experiment:
+  n_runs: 5                        # number of independent runs per ticker
+  crew_mode: sequential            # sequential | group_chat
+  output_dir: experiments/data     # per-run JSON + MD files (gitignored)
+  results_csv: experiments/results.csv  # aggregated scores (git-tracked)
+
+llm:
+  provider: openai                 # openai | gemini
+  model: gpt-4.1
+  temperature: 0.2
+
+rate_limits:
+  delay_between_runs_seconds: 10   # pause between runs of the same ticker
+  delay_between_tickers_seconds: 30  # extra pause when moving to the next ticker
+  skip_alphavantage: false         # set true to avoid AlphaVantage daily quota (25 req/day)
+
+tickers:
+  - { symbol: AAPL, sector: Technology }
+  - { symbol: MSFT, sector: Technology }
+  # ...
+```
+
+### Output Structure
+
+```
+experiments/
+├── results.csv          # tracked — one row per run with LLM config + eval scores
+└── data/                # gitignored — raw data and reports per run
+    ├── AAPL_20260101_120000.json       # API data captured from agent tools
+    ├── AAPL_20260101_120000.md         # generated investment report
+    └── AAPL_20260101_120000_eval.json  # evaluation breakdown
+```
+
+`results.csv` columns: `timestamp`, `instrument`, `sector`, `mode`, `provider`, `model`, `temperature`, `execution_time`, `overall_score`, `grade`, `structure`, `data_richness`, `sophistication`, `actionability`, `sentiment_balance`.
+
+### Monitoring a Running Experiment
+
+```bash
+# Follow live log output
+tail -f experiments/experiment_run.log
+
+# Check how many runs have completed
+wc -l experiments/results.csv
+
+# Preview latest scores
+tail -n 5 experiments/results.csv
+```
+
+### Tips
+
+- **AlphaVantage free tier** allows 25 requests/day. For large experiments set `skip_alphavantage: true` or increase `delay_between_tickers_seconds`.
+- The Streamlit app also serializes every generated report — same format as the batch runner.
+- To compare providers, run the same config twice with different `llm.provider` values; results accumulate in the same `results.csv`.
+
 ## Screenshots
 ### Main Interface
 ![Main Interface](screenshots/main.png)

@@ -1,0 +1,30 @@
+experiment:
+  n_runs: 5
+  crew_mode: sequential       # sequential | group_chat
+  output_dir: experiments/data
+  results_csv: experiments/results.csv
+
+llm:
+  provider: openai             # openai | gemini
+  model: gpt-4.1
+  temperature: 0.2
+
+# Delays to stay within API rate limits.
+# AlphaVantage free tier: 25 req/day → ~12 runs max (data_collector + crew each call it).
+# Increase delay_between_tickers_seconds or set skip_alphavantage: true for large experiments.
+rate_limits:
+  delay_between_runs_seconds: 10      # sleep between consecutive runs of the same ticker
+  delay_between_tickers_seconds: 30   # extra sleep when moving to the next ticker
+  skip_alphavantage: false            # set true to avoid hitting AlphaVantage daily quota
+
+tickers:
+  - { symbol: AAPL, sector: Technology }
+  - { symbol: MSFT, sector: Technology }
+  - { symbol: JPM,  sector: Finance }
+  - { symbol: BAC,  sector: Finance }
+  - { symbol: JNJ,  sector: Healthcare }
+  - { symbol: PFE,  sector: Healthcare }
+  - { symbol: XOM,  sector: Energy }
+  - { symbol: WMT,  sector: Consumer Staples }
+  - { symbol: KO,   sector: Consumer Staples }
+  - { symbol: CAT,  sector: Industrials }
