@@ -7,6 +7,8 @@ from src.services.alphavantage.alphavantage_client import AlphaVantageClient
 
 client = AlphaVantageClient()
 
+from src.experiments import tool_capture
+
 
 @tool
 def analyse_alphavantage_sentiment(
@@ -72,8 +74,10 @@ def analyse_alphavantage_sentiment(
             'summary': client.get_market_sentiment_summary(stock_symbol)
         }
         
-        return dumps(result, indent=2)
-        
+        json_str = dumps(result, indent=2)
+        tool_capture.record("alphavantage_sentiment", json_str)
+        return json_str
+
     except Exception as e:
         error_response = {
             "error": str(e),

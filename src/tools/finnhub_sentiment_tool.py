@@ -3,6 +3,7 @@ from src.utils import dumps
 from crewai.tools import tool
 
 from src.services.finnhub.finnhub_sentiment import FinnhubSentimentAnalyser
+from src.experiments import tool_capture
 
 
 @tool
@@ -58,7 +59,9 @@ def analyse_finnhub_sentiment(
             days_back=days_back,
             news_count=news_count
         )
-        return dumps(sentiment_data, indent=2)
+        json_str = dumps(sentiment_data, indent=2)
+        tool_capture.record("finnhub_sentiment", json_str)
+        return json_str
     except Exception as e:
         error_response = {
             "error": str(e),

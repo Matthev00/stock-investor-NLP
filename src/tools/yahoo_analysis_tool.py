@@ -3,6 +3,7 @@ from src.utils import dumps
 from crewai.tools import tool
 
 from src.services.yahoo_analysis_fetcher import YahooAnalysisFetcher
+from src.experiments import tool_capture
 
 
 @tool
@@ -23,5 +24,6 @@ def fetch_yahoo_analysis(ticker: str) -> str:
     """
     fetcher = YahooAnalysisFetcher(ticker)
     analysis = fetcher.fetch_analysis()
-
-    return dumps(analysis, indent=2)
+    json_str = dumps(analysis, indent=2)
+    tool_capture.record("yahoo_analysis", json_str)
+    return json_str

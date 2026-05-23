@@ -3,6 +3,7 @@ from src.utils import dumps
 from crewai.tools import tool
 
 from src.services.yahoo_news_fetcher import YahooNewsFetcher
+from src.experiments import tool_capture
 
 
 @tool
@@ -19,4 +20,6 @@ def fetch_yahoo_news(stock_symbol: str, count: int = 10) -> str:
     """
     news_fetcher = YahooNewsFetcher(stock_symbol)
     news_articles = news_fetcher.fetch_news(count=count)
-    return dumps(news_articles, indent=2)
+    json_str = dumps(news_articles, indent=2)
+    tool_capture.record("yahoo_news", json_str)
+    return json_str
