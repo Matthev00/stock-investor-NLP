@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import logging
+from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -9,10 +11,18 @@ from datetime import datetime
 from markdown_it import MarkdownIt
 
 from src.crews import StockAnalysisCrewFactory, CrewMode
-from src.config import get_default_provider, LLMProvider
+from src.config import get_default_provider, LLMProvider, load_config
 from src.utils.pdf_exporter import PDFReportExporter
 from src.utils.chart_builder import ChartBuilder
 from src.utils.report_evaluator import ReportEvaluator
+from src.experiments import tool_capture
+from src.experiments.models import ExperimentRun
+from src.experiments import serializer as exp_serializer
+
+logger = logging.getLogger(__name__)
+
+_APP_OUTPUT_DIR = Path("experiments/data")
+_APP_RESULTS_CSV = Path("experiments/results.csv")
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -81,6 +91,10 @@ if "selected_indicators" not in st.session_state:
     st.session_state.selected_indicators = {}
 if "evaluation_results" not in st.session_state:
     st.session_state.evaluation_results = None
+if "run_stem" not in st.session_state:
+    st.session_state.run_stem = None
+if "run_record" not in st.session_state:
+    st.session_state.run_record = None
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
@@ -170,7 +184,9 @@ if sidebar_col2.button("Generate report", type="primary", use_container_width=Tr
     with st.spinner("Running multi-agent analysis…"):
         try:
             crew = StockAnalysisCrewFactory.create(crew_mode, llm_provider)
+            tool_capture.start()
             result = crew.run(ticker)
+            _api_data = tool_capture.collect()
 
             report_md = format_markdown(str(result["report"]))
             report_cleaned = escape_markdown_specials(report_md)
@@ -178,6 +194,27 @@ if sidebar_col2.button("Generate report", type="primary", use_container_width=Tr
             st.session_state.report_mode = result["mode"]
             st.session_state.report_provider = result["provider"]
             st.session_state.execution_time = result["execution_time"]
+            try:
+                cfg = load_config(llm_provider)
+                model = cfg.model_sequential if crew_mode == CrewMode.SEQUENTIAL.value else cfg.model_group_chat
+                api_data = _api_data
+                run_record = ExperimentRun(
+                    instrument=ticker.upper(),
+                    timestamp=datetime.now(),
+                    mode=result["mode"],
+                    provider=result["provider"],
+                    model=model,
+                    temperature=cfg.temperature,
+                    execution_time=result["execution_time"],
+                    **api_data,
+                )
+                stem = exp_serializer.save_run_json(run_record, _APP_OUTPUT_DIR)
+                exp_serializer.save_report_md(report_cleaned, stem, _APP_OUTPUT_DIR)
+                st.session_state.run_stem = stem
+                st.session_state.run_record = run_record
+            except Exception as e:
+                logger.exception("Failed to serialize run data: %s", e)
+                st.warning(f"Report saved but serialization failed: {e}")
         except ValueError as e:
             st.error(f"Configuration Error: {str(e)}\n\nPlease ensure API keys are set in your .env file.")
 
@@ -250,6 +287,22 @@ if st.session_state.report is not None:
                     st.session_state.report,
                     ticker.upper()
                 )
+                try:
+                    if st.session_state.run_stem and st.session_state.run_record:
+                        exp_serializer.save_eval_json(
+                            st.session_state.evaluation_results,
+                            st.session_state.run_stem,
+                            _APP_OUTPUT_DIR,
+                        )
+                        exp_serializer.append_csv_row(
+                            st.session_state.run_record,
+                            "",
+                            st.session_state.evaluation_results,
+                            _APP_RESULTS_CSV,
+                        )
+                except Exception as e:
+                    logger.exception("Failed to serialize evaluation: %s", e)
+                    st.warning(f"Evaluation displayed but not saved: {e}")
 
     st.divider()
     
