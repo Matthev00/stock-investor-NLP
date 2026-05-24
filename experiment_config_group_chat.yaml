@@ -17,10 +17,10 @@ rate_limits:
   skip_alphavantage: false
 
 tickers:
-  - { symbol: AAPL, sector: Technology }
-  - { symbol: MSFT, sector: Technology }
-  - { symbol: JPM,  sector: Finance }
-  - { symbol: BAC,  sector: Finance }
+  # - { symbol: AAPL, sector: Technology }
+  # - { symbol: MSFT, sector: Technology }
+  # - { symbol: JPM,  sector: Finance }
+  # - { symbol: BAC,  sector: Finance }
   - { symbol: JNJ,  sector: Healthcare }
   - { symbol: PFE,  sector: Healthcare }
   - { symbol: XOM,  sector: Energy }
