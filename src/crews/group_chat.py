@@ -90,11 +90,16 @@ class GroupChatStockAnalysisCrew:
             result = crew.kickoff(inputs={"stock_symbol": stock_symbol.upper()})
             execution_time = time() - start_time
 
+            pydantic_out = result.pydantic
+            report_text = pydantic_out.report if pydantic_out else str(result)
+            recommendation = pydantic_out.recommendation if pydantic_out else None
+
             return {
                 "mode": "group_chat",
                 "provider": self.config.provider.value,
                 "execution_time": execution_time,
-                "report": str(result),
+                "report": report_text,
+                "recommendation": recommendation,
             }
         except Exception as e:
             execution_time = time() - start_time
@@ -103,5 +108,6 @@ class GroupChatStockAnalysisCrew:
                 "provider": self.config.provider.value,
                 "execution_time": execution_time,
                 "report": f"Group Chat mode failed: {str(e)}. Recommend using Sequential mode.",
+                "recommendation": None,
                 "error": str(e),
             }

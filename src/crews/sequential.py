@@ -57,9 +57,14 @@ class SequentialStockAnalysisCrew:
         result = self.crew.kickoff(inputs={"stock_symbol": stock_symbol.upper()})
         execution_time = time() - start_time
 
+        pydantic_out = result.pydantic
+        report_text = pydantic_out.report if pydantic_out else str(result)
+        recommendation = pydantic_out.recommendation if pydantic_out else None
+
         return {
             "mode": "sequential",
             "provider": self.config.provider.value,
             "execution_time": execution_time,
-            "report": str(result),
+            "report": report_text,
+            "recommendation": recommendation,
         }

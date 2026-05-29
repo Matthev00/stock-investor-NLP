@@ -21,8 +21,8 @@ from src.experiments import serializer as exp_serializer
 
 logger = logging.getLogger(__name__)
 
-_APP_OUTPUT_DIR = Path("experiments/data")
-_APP_RESULTS_CSV = Path("experiments/results.csv")
+_APP_OUTPUT_DIR = Path("experiments/data_v2")
+_APP_RESULTS_CSV = Path("experiments/results_v2.csv")
 
 INTERVAL_MAPPING = [
     {"period": "1d", "interval": "1m"},
@@ -87,6 +87,8 @@ if "report_provider" not in st.session_state:
     st.session_state.report_provider = None
 if "execution_time" not in st.session_state:
     st.session_state.execution_time = None
+if "report_recommendation" not in st.session_state:
+    st.session_state.report_recommendation = None
 if "selected_indicators" not in st.session_state:
     st.session_state.selected_indicators = {}
 if "evaluation_results" not in st.session_state:
@@ -135,8 +137,12 @@ llm_provider = st.sidebar.selectbox(
 
 crew_mode = st.sidebar.radio(
     "Analysis Mode",
-    options=[CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value],
-    format_func=lambda x: "Sequential" if x == CrewMode.SEQUENTIAL.value else "Group Chat",
+    options=[CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value, CrewMode.SINGLE_AGENT.value],
+    format_func=lambda x: {
+        CrewMode.SEQUENTIAL.value: "Sequential",
+        CrewMode.GROUP_CHAT.value: "Group Chat",
+        CrewMode.SINGLE_AGENT.value: "Single Agent",
+    }[x],
     horizontal=True
 )
 
@@ -194,9 +200,10 @@ if sidebar_col2.button("Generate report", type="primary", use_container_width=Tr
             st.session_state.report_mode = result["mode"]
             st.session_state.report_provider = result["provider"]
             st.session_state.execution_time = result["execution_time"]
+            st.session_state.report_recommendation = result.get("recommendation")
             try:
                 cfg = load_config(llm_provider)
-                model = cfg.model_sequential if crew_mode == CrewMode.SEQUENTIAL.value else cfg.model_group_chat
+                model = cfg.model_group_chat if crew_mode == CrewMode.GROUP_CHAT.value else cfg.model_sequential
                 api_data = _api_data
                 run_record = ExperimentRun(
                     instrument=ticker.upper(),
@@ -206,6 +213,7 @@ if sidebar_col2.button("Generate report", type="primary", use_container_width=Tr
                     model=model,
                     temperature=cfg.temperature,
                     execution_time=result["execution_time"],
+                    recommendation=result.get("recommendation"),
                     **api_data,
                 )
                 stem = exp_serializer.save_run_json(run_record, _APP_OUTPUT_DIR)
@@ -243,15 +251,23 @@ if st.session_state.report is not None:
     st.header("Investment Report")
     
     # Display metadata
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        mode_label = "Sequential (Original)" if st.session_state.report_mode == CrewMode.SEQUENTIAL.value else "Group Chat (FinDebate)"
+        mode_label = {
+            CrewMode.SEQUENTIAL.value: "Sequential (Original)",
+            CrewMode.GROUP_CHAT.value: "Group Chat (FinDebate)",
+            CrewMode.SINGLE_AGENT.value: "Single Agent (Autonomous)",
+        }.get(st.session_state.report_mode, st.session_state.report_mode)
         st.metric("Analysis Mode", mode_label)
     with col2:
         provider_label = "Gemini" if st.session_state.report_provider == "gemini" else "OpenAI"
         st.metric("LLM Provider", provider_label)
     with col3:
         st.metric("Execution Time", f"{st.session_state.execution_time:.1f}s")
+    with col4:
+        rec = st.session_state.report_recommendation
+        rec_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(rec, "⚪")
+        st.metric("Recommendation", f"{rec_icon} {rec}" if rec else "N/A")
     
     st.divider()
     

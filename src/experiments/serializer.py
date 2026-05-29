@@ -21,6 +21,7 @@ CSV_COLUMNS = [
     "sophistication",
     "actionability",
     "sentiment_balance",
+    "recommendation",
 ]
 
 
@@ -69,6 +70,7 @@ def append_csv_row(run: ExperimentRun, sector: str, evaluation: dict, results_cs
         "sophistication": round(dim.get("sophistication", 0), 2),
         "actionability": round(dim.get("actionability", 0), 2),
         "sentiment_balance": round(dim.get("sentiment_balance", 0), 2),
+        "recommendation": run.recommendation or evaluation.get("metrics", {}).get("actionability", {}).get("primary_action", ""),
     }
     with open(results_csv, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)

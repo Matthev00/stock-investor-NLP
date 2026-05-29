@@ -12,6 +12,7 @@ class ExperimentRun(BaseModel):
     model: str
     temperature: float
     execution_time: float
+    recommendation: str | None = None
 
     yahoo_news: list[dict[str, Any]] | None = None
     yahoo_fundamentals: dict[str, Any] | None = None

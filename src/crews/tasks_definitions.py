@@ -2,6 +2,8 @@ from crewai import Task, Agent
 from enum import Enum
 from typing import Optional
 
+from src.crews.models import StockReportOutput
+
 
 class TaskType(Enum):
     """Enumeration of available task types."""
@@ -12,6 +14,7 @@ class TaskType(Enum):
     SCEPTIC = "sceptic"
     TRUST = "trust"
     SYNTHESIS = "synthesis"
+    SINGLE_AGENT_ANALYSIS = "single_agent_analysis"
 
 
 # Task configurations
@@ -75,6 +78,7 @@ TASK_CONFIGS = {
         ),
     },
     TaskType.REPORTING: {
+        "output_pydantic": StockReportOutput,
         "description": (
             "Synthesize the sentiment analysis, technical analysis, and fundamental analysis "
             "for '{stock_symbol}', drawing from the outputs of the Stock Sentiment Agent, "
@@ -120,6 +124,7 @@ TASK_CONFIGS = {
         ),
     },
     TaskType.SYNTHESIS: {
+        "output_pydantic": StockReportOutput,
         "description": (
             "You are the investment committee leader. Synthesize all perspectives on '{stock_symbol}' "
             "from Researcher, Technical Analyst, Fundamental Analyst, Sceptic, and Trust Specialist. "
@@ -129,6 +134,33 @@ TASK_CONFIGS = {
         "expected_output": (
             "Comprehensive investment report including executive summary, sentiment analysis, technical analysis, "
             "fundamental analysis, risk assessment, convergences/divergences, catalysts, and final recommendation."
+        ),
+    },
+    TaskType.SINGLE_AGENT_ANALYSIS: {
+        "output_pydantic": StockReportOutput,
+        "description": (
+            "Conduct a complete, independent investment analysis of '{stock_symbol}'. "
+            "Use all available tools to: "
+            "(1) gather Reddit sentiment (analyse_reddit_tool), "
+            "(2) fetch recent news articles (fetch_yahoo_news_tool), "
+            "(3) retrieve analyst estimates (fetch_yahoo_analysis_tool), "
+            "(4) compute technical indicators (analyse_technical_indicators_tool), "
+            "(5) analyse fundamentals and financials (analyse_fundamentals_tool), "
+            "(6) assess market sentiment from Finnhub (analyse_finnhub_sentiment_tool), "
+            "(7) assess news sentiment from AlphaVantage (analyse_alphavantage_sentiment_tool). "
+            "Synthesize all gathered data into a cohesive, professional investment report."
+        ),
+        "expected_output": (
+            "A comprehensive, well-structured investment report for '{stock_symbol}' covering all of the following sections:\n"
+            "1. **Executive Summary** — overall investment thesis (Buy/Sell/Hold) with key supporting reasons and price target.\n"
+            "2. **Sentiment Analysis** — synthesis of Reddit, news, Finnhub, and AlphaVantage sentiment; dominant themes driving public perception.\n"
+            "3. **Technical Analysis** — interpretation of key indicators (RSI, MACD, SMAs, Bollinger Bands, Stochastics); trend, support/resistance levels, and trading signals.\n"
+            "4. **Fundamental Analysis** — financial health assessment (P/E, EPS, revenue growth, margins, cash flow, debt); valuation assessment and key metrics.\n"
+            "5. **Risk Assessment** — primary risks, downside scenarios, and factors that could invalidate the thesis.\n"
+            "6. **Convergences/Divergences** — where sentiment, technical, and fundamental analyses agree or conflict.\n"
+            "7. **Catalysts** — key upcoming events or structural drivers (earnings, product launches, macro factors).\n"
+            "8. **Final Recommendation** — actionable Buy/Sell/Hold with specific price target and time horizon.\n"
+            "The report must use professional financial language, cite specific data points, and be actionable."
         ),
     },
 }
@@ -165,6 +197,9 @@ def create_task(
         "expected_output": config["expected_output"],
         "agent": agent,
     }
+
+    if "output_pydantic" in config:
+        task_kwargs["output_pydantic"] = config["output_pydantic"]
 
     # Add context if provided
     if context is not None:
