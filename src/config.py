@@ -61,6 +61,7 @@ class LLMConfig:
 
         self.model_sequential = os.getenv("LLM_MODEL", default_model_sequential)
         self.model_group_chat = os.getenv("LLM_MODEL", default_model_group_chat)
+        self.model_single_agent = os.getenv("LLM_MODEL", default_model_sequential)
         self.temperature = float(os.getenv("LLM_TEMPERATURE", default_temperature))
 
 

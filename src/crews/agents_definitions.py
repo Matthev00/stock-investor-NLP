@@ -105,3 +105,33 @@ def create_leader_agent(llm: LLM) -> Agent:
         allow_code_execution=False,
         allow_delegation=True,
     )
+
+
+def create_single_agent(llm: LLM) -> Agent:
+    """Create a single self-sufficient agent with all tools for stock analysis."""
+    return Agent(
+        role="Autonomous Investment Analyst",
+        goal=(
+            "Independently conduct a full investment analysis of {stock_symbol} by gathering "
+            "sentiment data, news, technical indicators, and fundamental financials, then synthesize "
+            "everything into a comprehensive investment report with a clear Buy/Sell/Hold recommendation."
+        ),
+        backstory=(
+            "You are an elite investment analyst with a Ph.D. in Financial Economics, CFA charter, "
+            "and CMT designation. With 20 years of experience spanning equity research, technical analysis, "
+            "and portfolio management, you work autonomously to produce institutional-grade research reports. "
+            "You gather your own data, perform multi-dimensional analysis, and deliver definitive investment recommendations."
+        ),
+        llm=llm,
+        tools=[
+            analyse_finnhub_sentiment,
+            analyse_alphavantage_sentiment,
+            fetch_yahoo_news,
+            fetch_yahoo_analysis,
+            analyse_technical_indicators,
+            analyse_fundamentals,
+        ],
+        verbose=True,
+        memory=True,
+        allow_code_execution=False,
+    )

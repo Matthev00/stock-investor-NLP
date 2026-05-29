@@ -3,6 +3,7 @@ from typing import Optional
 
 from src.crews.sequential import SequentialStockAnalysisCrew
 from src.crews.group_chat import GroupChatStockAnalysisCrew
+from src.crews.single_agent import SingleAgentStockAnalysisCrew
 from src.config import load_config
 
 
@@ -11,6 +12,7 @@ class CrewMode(Enum):
 
     SEQUENTIAL = "sequential"
     GROUP_CHAT = "group_chat"
+    SINGLE_AGENT = "single_agent"
 
 
 class StockAnalysisCrewFactory:
@@ -37,5 +39,7 @@ class StockAnalysisCrewFactory:
             return SequentialStockAnalysisCrew(config)
         elif mode.lower() == CrewMode.GROUP_CHAT.value:
             return GroupChatStockAnalysisCrew(config)
+        elif mode.lower() == CrewMode.SINGLE_AGENT.value:
+            return SingleAgentStockAnalysisCrew(config)
         else:
-            raise ValueError(f"Unknown crew mode: {mode}. Use 'sequential' or 'group_chat'.")
+            raise ValueError(f"Unknown crew mode: {mode}. Use 'sequential', 'group_chat', or 'single_agent'.")
