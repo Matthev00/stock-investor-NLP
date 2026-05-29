@@ -1,0 +1,28 @@
+experiment:
+  n_runs: 3
+  crew_modes:
+    - sequential
+    - group_chat
+    - single_agent
+  output_dir: experiments/data
+  results_csv: experiments/results.csv
+
+llm:
+  provider: openai
+  model: gpt-4.1
+  temperature: 0.2
+
+# Delays to stay within API rate limits across all three modes.
+# Total runs: 3 modes × 5 tickers × 3 runs = 45 runs.
+# AlphaVantage free tier: 25 req/day — set skip_alphavantage: true if needed.
+rate_limits:
+  delay_between_runs_seconds: 15
+  delay_between_tickers_seconds: 45
+  skip_alphavantage: false
+
+tickers:
+  - { symbol: AAPL, sector: Technology }
+  - { symbol: JPM,  sector: Finance }
+  - { symbol: JNJ,  sector: Healthcare }
+  - { symbol: XOM,  sector: Energy }
+  - { symbol: WMT,  sector: Consumer Staples }

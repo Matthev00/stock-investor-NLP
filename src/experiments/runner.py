@@ -22,8 +22,12 @@ class ExperimentRunner:
             self._cfg = yaml.safe_load(f)
 
         self._n_runs: int = self._cfg["experiment"]["n_runs"]
-        self._mode: str = self._cfg["experiment"]["crew_mode"]
-        self._output_dir = Path(self._cfg["experiment"]["output_dir"])
+        exp_cfg = self._cfg["experiment"]
+        if "crew_modes" in exp_cfg:
+            self._modes: list[str] = exp_cfg["crew_modes"]
+        else:
+            self._modes = [exp_cfg["crew_mode"]]
+        self._output_dir = Path(exp_cfg["output_dir"])
         self._results_csv = Path(self._cfg["experiment"]["results_csv"])
 
         self._llm_provider: str = self._cfg["llm"]["provider"]
@@ -49,34 +53,37 @@ class ExperimentRunner:
                 raise ValueError(f"Ticker {only_ticker} not found in config.")
 
         logger.info(
-            "Starting experiment: %d ticker(s) × %d run(s), mode=%s, provider=%s, model=%s, temperature=%s",
+            "Starting experiment: %d mode(s) × %d ticker(s) × %d run(s), provider=%s, model=%s, temperature=%s",
+            len(self._modes),
             len(tickers),
             self._n_runs,
-            self._mode,
             self._llm_provider,
             self._llm_model,
             self._llm_temperature,
         )
 
         if dry_run:
-            for entry in tickers:
-                logger.info("[dry-run] Would run %s (%s) × %d", entry["symbol"], entry.get("sector", ""), self._n_runs)
+            for mode in self._modes:
+                for entry in tickers:
+                    logger.info("[dry-run] Would run %s (%s) mode=%s × %d", entry["symbol"], entry.get("sector", ""), mode, self._n_runs)
             return
 
         self._set_llm_env()
 
-        for ticker_idx, entry in enumerate(tickers):
-            symbol: str = entry["symbol"].upper()
-            sector: str = entry.get("sector", "")
-            if ticker_idx > 0 and self._delay_between_tickers > 0:
-                logger.info("Rate limit: sleeping %.0fs before next ticker…", self._delay_between_tickers)
-                time.sleep(self._delay_between_tickers)
-            for run_idx in range(1, self._n_runs + 1):
-                logger.info("→ %s run %d/%d", symbol, run_idx, self._n_runs)
-                self._execute_run(symbol, sector, run_idx)
-                if run_idx < self._n_runs and self._delay_between_runs > 0:
-                    logger.info("Rate limit: sleeping %.0fs before next run…", self._delay_between_runs)
-                    time.sleep(self._delay_between_runs)
+        for mode in self._modes:
+            logger.info("=== Starting mode: %s ===", mode)
+            for ticker_idx, entry in enumerate(tickers):
+                symbol: str = entry["symbol"].upper()
+                sector: str = entry.get("sector", "")
+                if ticker_idx > 0 and self._delay_between_tickers > 0:
+                    logger.info("Rate limit: sleeping %.0fs before next ticker…", self._delay_between_tickers)
+                    time.sleep(self._delay_between_tickers)
+                for run_idx in range(1, self._n_runs + 1):
+                    logger.info("→ [%s] %s run %d/%d", mode, symbol, run_idx, self._n_runs)
+                    self._execute_run(symbol, sector, run_idx, mode)
+                    if run_idx < self._n_runs and self._delay_between_runs > 0:
+                        logger.info("Rate limit: sleeping %.0fs before next run…", self._delay_between_runs)
+                        time.sleep(self._delay_between_runs)
 
         logger.info("Experiment complete. Results: %s", self._results_csv)
 
@@ -84,12 +91,12 @@ class ExperimentRunner:
         os.environ["LLM_MODEL"] = self._llm_model
         os.environ["LLM_TEMPERATURE"] = str(self._llm_temperature)
 
-    def _execute_run(self, symbol: str, sector: str, run_idx: int) -> None:
+    def _execute_run(self, symbol: str, sector: str, run_idx: int, mode: str) -> None:
         timestamp = datetime.now()
         ts_str = timestamp.strftime("%Y%m%d_%H%M%S")
         stem = f"{symbol}_{ts_str}"
 
-        crew = StockAnalysisCrewFactory.create(self._mode, self._llm_provider)
+        crew = StockAnalysisCrewFactory.create(mode, self._llm_provider)
         tool_capture.start()
         result = crew.run(symbol)
         api_data = tool_capture.collect()
@@ -105,6 +112,7 @@ class ExperimentRunner:
             model=self._llm_model,
             temperature=self._llm_temperature,
             execution_time=result.get("execution_time", 0.0),
+            recommendation=result.get("recommendation"),
             **api_data,
         )
 
@@ -113,4 +121,10 @@ class ExperimentRunner:
         serializer.save_eval_json(evaluation, stem, self._output_dir)
         serializer.append_csv_row(run, sector, evaluation, self._results_csv)
 
-        logger.info("  ✓ saved %s (score=%.1f, grade=%s)", stem, evaluation["overall_score"], evaluation["grade"])
+        logger.info(
+            "  ✓ saved %s (score=%.1f, grade=%s, recommendation=%s)",
+            stem,
+            evaluation["overall_score"],
+            evaluation["grade"],
+            run.recommendation or "N/A",
+        )
