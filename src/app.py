@@ -15,6 +15,7 @@ from src.config import get_default_provider, LLMProvider, load_config
 from src.utils.pdf_exporter import PDFReportExporter
 from src.utils.chart_builder import ChartBuilder
 from src.utils.report_evaluator import ReportEvaluator
+from src.utils.faithfulness_evaluator import FaithfulnessEvaluator
 from src.experiments import tool_capture
 from src.experiments.models import ExperimentRun
 from src.experiments import serializer as exp_serializer
@@ -303,6 +304,14 @@ if st.session_state.report is not None:
                     st.session_state.report,
                     ticker.upper()
                 )
+                if st.session_state.run_record:
+                    fa_evaluator = FaithfulnessEvaluator()
+                    faithfulness = fa_evaluator.evaluate(
+                        st.session_state.report,
+                        ticker.upper(),
+                        st.session_state.run_record.model_dump(),
+                    )
+                    st.session_state.evaluation_results["faithfulness"] = faithfulness
                 try:
                     if st.session_state.run_stem and st.session_state.run_record:
                         exp_serializer.save_eval_json(
@@ -458,6 +467,22 @@ if st.session_state.report is not None:
                     st.markdown(f"*Suggestion:* {rec['suggestion']}")
                     if i < len(eval_data['recommendations']):
                         st.divider()
+
+        # Faithfulness (LLM-as-judge)
+        if "faithfulness" in eval_data:
+            st.divider()
+            faithfulness = eval_data["faithfulness"]
+            f_score = faithfulness.get("score")
+            st.subheader("🔍 Faithfulness (LLM-as-judge)")
+            f_col1, f_col2 = st.columns([1, 3])
+            with f_col1:
+                st.metric(
+                    "Faithfulness Score",
+                    f"{f_score:.2f}" if f_score is not None else "N/A",
+                    "DeepEval",
+                )
+            with f_col2:
+                st.info(faithfulness.get("reason") or "No reason available")
     
     st.divider()
     st.markdown(st.session_state.report)

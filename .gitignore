@@ -1,6 +1,7 @@
 # Experiment raw data (large API snapshots, reports)
 experiments/data/
 experiments/data*/
+.deepeval/
 
 
 # Byte-compiled / optimized / DLL files

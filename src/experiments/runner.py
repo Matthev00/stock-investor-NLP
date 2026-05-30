@@ -12,6 +12,7 @@ from src.experiments import tool_capture
 from src.experiments.models import ExperimentRun
 from src.experiments import serializer
 from src.utils.report_evaluator import ReportEvaluator
+from src.utils.faithfulness_evaluator import FaithfulnessEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class ExperimentRunner:
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._results_csv.parent.mkdir(parents=True, exist_ok=True)
         self._evaluator = ReportEvaluator()
+        self._faithfulness_evaluator = FaithfulnessEvaluator()
 
     def run(self, *, dry_run: bool = False, only_ticker: str | None = None) -> None:
         tickers = self._tickers
@@ -103,11 +105,13 @@ class ExperimentRunner:
 
         report_text: str = str(result.get("report", ""))
         evaluation: dict[str, Any] = self._evaluator.evaluate(report_text, symbol)
+        faithfulness = self._faithfulness_evaluator.evaluate(report_text, symbol, api_data)
+        evaluation["faithfulness"] = faithfulness
 
         run = ExperimentRun(
             instrument=symbol,
             timestamp=timestamp,
-            mode=result.get("mode", self._mode),
+            mode=result.get("mode", mode),
             provider=result.get("provider", self._llm_provider),
             model=self._llm_model,
             temperature=self._llm_temperature,
@@ -121,10 +125,12 @@ class ExperimentRunner:
         serializer.save_eval_json(evaluation, stem, self._output_dir)
         serializer.append_csv_row(run, sector, evaluation, self._results_csv)
 
+        faithfulness_score = faithfulness.get("score")
         logger.info(
-            "  ✓ saved %s (score=%.1f, grade=%s, recommendation=%s)",
+            "  ✓ saved %s (score=%.1f, grade=%s, recommendation=%s, faithfulness=%s)",
             stem,
             evaluation["overall_score"],
             evaluation["grade"],
             run.recommendation or "N/A",
+            f"{faithfulness_score:.2f}" if faithfulness_score is not None else "N/A",
         )
