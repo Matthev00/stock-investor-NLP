@@ -5,7 +5,9 @@
 [![CrewAI](https://img.shields.io/badge/CrewAI-0.119.0-green.svg)](https://www.crewai.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> 📺 **[Watch the demo video](docs/Stock%20Analysis%20Platform.mp4)**
+> 📺 **Demo**
+>
+> <video src="docs/Stock%20Analysis%20Platform.mp4" controls width="100%"></video>
 
 ## Overview
 
