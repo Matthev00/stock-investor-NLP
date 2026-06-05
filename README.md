@@ -1,4 +1,4 @@
-# Stock Investment Analysis Platform (nlp-2025)
+# Stock Investment Analysis Platform
 
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.45.1-orange.svg)](https://streamlit.io)
