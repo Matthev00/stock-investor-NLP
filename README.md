@@ -7,8 +7,7 @@
 
 > 📺 **Demo**
 >
-> <video src="docs/Stock%20Analysis%20Platform.mp4" controls width="100%"></video>
-
+> <video src="https://github.com/Matthev00/stock-investor-NLP/releases/download/v1.0.0/Stock.Analysis.Platform.mp4" controls width="100%"></video>
 ## Overview
 
 An AI-powered stock analysis platform that generates professional investment reports using a multi-agent system built on CrewAI. Agents collect data from Yahoo Finance, Finnhub, and AlphaVantage, then synthesize it into a structured BUY/HOLD/SELL report with evaluation metrics.
@@ -120,7 +119,5 @@ tail -f experiments/run.log
 ```
 
 ## Disclaimer
-
-This platform is for informational purposes only and does not constitute financial or investment advice.
 
 This platform is for informational purposes only and does not constitute financial or investment advice.
