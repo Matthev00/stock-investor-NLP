@@ -7,7 +7,7 @@
 
 ## Demo
 
-<video src="https://github.com/Matthev00/stock-investor-NLP/releases/download/v1.0.0/Stock.Analysis.Platform.mp4" controls width="100%"></video>
+<video src="https://private-user-images.githubusercontent.com/125884790/603565816-58eb803c-848f-4688-8d3b-b046c783c9aa.mp4" controls width="100%"></video>
 
 ## Overview
 
