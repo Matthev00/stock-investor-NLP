@@ -5,9 +5,10 @@
 [![CrewAI](https://img.shields.io/badge/CrewAI-0.119.0-green.svg)](https://www.crewai.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> 📺 **Demo**
->
-> <video src="https://github.com/Matthev00/stock-investor-NLP/releases/download/v1.0.0/Stock.Analysis.Platform.mp4" controls width="100%"></video>
+## Demo
+
+<video src="https://github.com/Matthev00/stock-investor-NLP/releases/download/v1.0.0/Stock.Analysis.Platform.mp4" controls width="100%"></video>
+
 ## Overview
 
 An AI-powered stock analysis platform that generates professional investment reports using a multi-agent system built on CrewAI. Agents collect data from Yahoo Finance, Finnhub, and AlphaVantage, then synthesize it into a structured BUY/HOLD/SELL report with evaluation metrics.
