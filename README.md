@@ -1,342 +1,124 @@
-# Stock Investment Analysis Platform (nlp-2025l)
+# Stock Investment Analysis Platform (nlp-2025)
 
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.45.1-orange.svg)](https://streamlit.io)
 [![CrewAI](https://img.shields.io/badge/CrewAI-0.119.0-green.svg)](https://www.crewai.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> 📺 **[Watch the demo video](docs/Stock%20Analysis%20Platform.mp4)**
 
 ## Overview
 
-The Stock Investment Analysis Platform is an AI-powered application designed to provide comprehensive investment insights and generate detailed analysis reports for publicly traded stocks. It leverages a team of AI agents, each specializing in a different aspect of stock analysis, to gather, process, and synthesize information from various sources. The platform aims to help investors make more informed, data-driven decisions.
+An AI-powered stock analysis platform that generates professional investment reports using a multi-agent system built on CrewAI. Agents collect data from Yahoo Finance, Finnhub, and AlphaVantage, then synthesize it into a structured BUY/HOLD/SELL report with evaluation metrics.
 
-The final output is a cohesive investment report in Markdown format, offering an executive summary, synthesized analyses (sentiment, technical, fundamental), discussion of convergences/divergences, catalysts, risk factors, and an investment outlook with recommendations.
+> **Note on Reddit:** The Reddit sentiment tool is currently disabled due to Reddit API access restrictions (OAuth app approval required). All other data sources are fully operational.
 
-## Features
+## Analysis Modes
 
-* **Multi-Agent Analysis with Multiple Modes:** Utilizes a team of AI agents (powered by CrewAI) for specialized tasks:
-    * **Sequential Mode:** Linear workflow with 4 agents
-        * **Senior Stock Market Researcher:** Gathers qualitative data, public sentiment from Reddit, Yahoo News, and Yahoo financial analyses.
-        * **Expert Technical Analyst:** Performs in-depth technical analysis using a wide array of indicators.
-        * **Senior Fundamental Analyst:** Conducts comprehensive fundamental analysis of the company's financial health, valuation, and market position using Yahoo Finance data.
-        * **Chief Investment Strategist:** Synthesizes all analyses into a final investment report.
-    * **Group Chat Mode (FinDebate):** Hierarchical debate with 6 agents
-        * Original 3 specialist agents (Researcher, Technical Analyst, Fundamental Analyst)
-        * **Devil's Advocate (Sceptic):** Challenges assumptions and identifies risks
-        * **Data Verification Specialist:** Validates data accuracy and source credibility
-        * **Discussion Moderator & Chief Synthesizer (Leader):** Orchestrates the debate and synthesizes final recommendation
-* **Dual LLM Provider Support:** 
-    * **Gemini** (Google) - Default provider with fast lite models
-    * **OpenAI** - Alternative provider with GPT-4 models
-    * Easy provider switching via UI dropdown or `.env` configuration
-* **Interactive Web Interface:** Built with Streamlit for easy user interaction, allowing users to input stock symbols and view charts and reports.
-* **Data Sources:**
-    * **Yahoo Finance (yfinance):** For historical stock data, company information, financial news, analyst estimates, and fundamental data.
-    * **Reddit:** For public sentiment analysis on specified subreddits (e.g., r/wallstreetbets, r/stocks, r/investing).
-* **Comprehensive Analysis:**
-    * **Sentiment Analysis:** Processes Reddit discussions, Yahoo News, and analyst opinions to gauge public sentiment towards the stock.
-    * **Technical Analysis:** Calculates and interprets indicators like SMAs, EMAs, MACD, RSI, Bollinger Bands, Stochastics, ATR, OBV, and more. Identifies trends, patterns, support/resistance levels.
-    * **Fundamental Analysis:** Assesses financial health, profitability, growth prospects, valuation (P/E, P/S, D/E, ROE, etc.), and overall intrinsic value.
-* **Dynamic Charting:** Displays stock price charts (candlestick or line) with configurable time periods using Plotly.
-* **PDF Export:** Download complete investment reports with charts and metrics in professional PDF format.
+| Mode | Agents | Description |
+|------|--------|-------------|
+| **Sequential** | 4 | Researcher → Technical Analyst → Fundamental Analyst → Reporter |
+| **Group Chat** | 6 | Above specialists + Sceptic + Trust Agent, orchestrated by a Leader |
+| **Single Agent** | 1 | One agent with all tools — fastest, most direct |
 
-## How it Works (Architecture)
+## LLM Configuration
 
-The platform operates using a multi-agent system orchestrated by CrewAI with two distinct execution modes:
+Default: **OpenAI `gpt-4.1`** for all modes.  
+Gemini is also supported — switch via UI dropdown or `LLM_PROVIDER` in `.env`.
 
-### Sequential Mode (Original - Default)
-1. The user inputs a stock symbol via the Streamlit interface.
-2. A `SequentialStockAnalysisCrew` is initialized with 4 agents (Researcher, Technical Analyst, Fundamental Analyst, Reporter).
-3. Agents execute in linear order with task dependencies:
-   - **Researcher** gathers news from Yahoo Finance, analyst opinions, and sentiment from Reddit
-   - **Technical Analyst** fetches historical market data and performs technical analysis
-   - **Fundamental Analyst** fetches and analyzes company financial data
-   - **Reporter** synthesizes all outputs into a comprehensive investment report
-4. Final report is displayed in the Streamlit application.
+## Evaluation
 
-### Group Chat Mode (FinDebate - New)
-1. User selects "Group Chat" mode in the UI.
-2. A `GroupChatStockAnalysisCrew` is initialized with 6 agents in a hierarchical structure.
-3. Agents execute in parallel with group discussion coordination:
-   - **Original 3 specialists** (Researcher, Technical Analyst, Fundamental Analyst) gather and analyze data
-   - **Sceptic** challenges assumptions and identifies potential risks
-   - **Trust Agent** validates data accuracy and source credibility
-   - **Leader** orchestrates the debate and synthesizes final consensus recommendation
-4. Hierarchical process ensures all perspectives are considered before final recommendation.
-5. Final debate-synthesized report is displayed.
+Every generated report can be evaluated via the **Evaluate Report Quality** button:
 
-### LLM Provider Configuration
-- **Gemini (Default):** Uses `gemini-2.0-flash-lite` (sequential) and `gemini-2.0-flash` (group chat)
-- **OpenAI:** Uses `gpt-4o-mini` (sequential) and `gpt-4o` (group chat)
-- Provider can be changed via UI dropdown or configured in `.env` file
+- **Rule-based evaluator** — scores 5 dimensions (Structure, Data Richness, Sophistication, Actionability, Sentiment Balance) visualized as a radar chart.
+- **LLM-as-judge Faithfulness** (DeepEval) — extracts *truths* from raw API data and *claims* from the report, then uses `gpt-4.1` to check whether the report's claims are grounded in the source data. Returns a 0–1 score + written justification. Uses a custom financial-domain prompt template.
 
-## Technologies Used
+## Setup
 
-* **Backend & AI:**
-    * Python (`>=3.10`)
-    * CrewAI (`>=1.6.1`) - Multi-agent orchestration framework
-    * Google Gemini API (via CrewAI LLM integration)
-    * OpenAI API (gpt-4o family models)
-    * Transformers (`>=4.51.3`) (for local sentiment analysis model)
-    * PyTorch (`>=2.7.0`)
-* **Data Handling & Analysis:**
-    * Pandas
-    * NumPy
-    * yfinance (`>=0.2.61`) (for Yahoo Finance data)
-    * PRAW (`>=7.8.1`) (for Reddit data)
-    * TA-Lib (`>=0.6.3`) (for technical indicators)
-* **Web Interface & Visualization:**
-    * Streamlit (`>=1.45.1`)
-    * Plotly (`>=6.1.0`)
-    * ReportLab (`>=4.0.0`) (for PDF generation)
-* **Configuration & Environment:**
-    * python-dotenv (`>=1.0.0`) (for environment variable management)
-
-
-## Setup and Installation
-
-1.  **Clone the repository:**
+1. **Clone & install:**
     ```bash
-    git clone <your-repository-url>
-    cd nlp-2025l
-    ```
-
-2.  **Create a virtual environment (recommended):**
-    ```bash
-    make create_environment
-    source .venv/bin/activate
-    ```
-
-3.  **Install dependencies:**
-    ```bash
+    git clone https://github.com/Matthev00/stock-investor-NLP.git
+    cd stock-investor-NLP
+    make create_environment && source .venv/bin/activate
     make requirements
     ```
-    *Note on TA-Lib:* TA-Lib can sometimes be tricky to install. Please refer to the official TA-Lib installation guide for your operating system if you encounter issues.
 
-4.  **Set up Environment Variables:**
-    Create a `.env` file in the root directory of the project (`nlp-2025l/`):
+2. **Create `.env`:**
+    ```dotenv
+    LLM_PROVIDER=openai
+    OPENAI_API_KEY=your_openai_api_key
+    GEMINI_API_KEY=your_gemini_api_key
+    FINNHUB_API_KEY=your_finnhub_api_key
+    ALPHA_VANTAGE_API_KEY=your_alphavantage_api_key
     ```
-    REDDIT_CLIENT_ID="YOUR_REDDIT_CLIENT_ID"
-    REDDIT_CLIENT_SECRET="YOUR_REDDIT_CLIENT_SECRET"
-    REDDIT_USER_AGENT="YOUR_REDDIT_USER_AGENT_STRING"
-    LLM_PROVIDER="gemini"
-    GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-    OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
-    FINNHUB_API_KEY="YOUR_FINNHUB_API_KEY"
-    ALPHA_VANTAGE_API_KEY="YOUR_ALPHA_VANTAGE_API_KEY"
+
+3. **Run:**
+    ```bash
+    uv run streamlit run src/app.py
     ```
-    Replace the placeholder values with your actual API keys.
-    * **Reddit API Credentials:** Create an app on Reddit to get these https://www.reddit.com/prefs/apps. `REDDIT_CLIENT_ID` will be in the left top corner, `REDDIT_CLIENT_SECRET` will be next **secret** field, and `REDDIT_USER_AGENT` can be any string that describes your application.
-    * **LLM Provider:** Wybierz `gemini` lub `openai`. W aplikacji możesz zmienić providera z menu dropdown.
-      - **Gemini:** Pobierz klucz z https://aistudio.google.com/app/apikey
-      - **OpenAI:** Pobierz klucz z https://platform.openai.com/api-keys
-    * **Finnhub API Key:** Pobierz klucz z https://finnhub.io/dashboard (wymagany do analizy sentymentu rynkowego).
-    * **Alpha Vantage API Key:** Pobierz klucz z https://www.alphavantage.co/support/#api-key (wymagany do danych finansowych).
 
-## Running the Application
+## Using the App
 
-Once the setup is complete, run the Streamlit application:
-```bash
-uv run streamlit run src/app.py
-```
+- Enter a ticker (e.g. `AAPL`), select time period and chart type.
+- Pick **Technical Indicators** (SMA 20/50/200, EMA 20/50, Bollinger Bands).
+- **Update** — refreshes the price chart without running the AI pipeline.
+- **Generate Report** — triggers the full multi-agent analysis.
+- After the report is generated, click **Evaluate Report Quality** to run both evaluators.
+- **Download Report as PDF** to export the analysis.
 
-### Using the Application
+## Batch Experiment Runner
 
-1. **Configure Stock Analysis:**
-   - Enter a stock symbol (e.g., `AAPL`, `NVDA`)
-   - Select time period for chart data (1d, 5d, 1mo, 6mo, ytd, 1y, 5y, max)
-   - Choose chart type (Candlestick or Line)
-   - **Select Technical Indicators** (expandable section):
-     - **Moving Averages:** SMA 20/50/200, EMA 20/50
-     - **Volatility:** Bollinger Bands
-   - Click "Update" to fetch data and display chart with selected indicators
-
-2. **Select Analysis Mode:**
-   - **Sequential Mode** (default): Linear execution with 4 specialists - faster and more deterministic
-   - **Group Chat Mode**: Hierarchical debate with 6 agents - longer execution but more thorough analysis with risk assessment
-
-3. **Choose LLM Provider:**
-   - **Gemini** (default): Fast API, good quality for financial analysis
-   - **OpenAI**: Alternative provider, switch anytime from dropdown
-
-4. **Generate Analysis:**
-   - Click "Update" to fetch and display stock chart with current metrics
-   - Click "Generate report" to run multi-agent analysis
-   - View comprehensive investment report with mode and provider information
-   - **Export Report:** Click "Download Report as PDF" to export the full analysis with chart and metrics
-
-## Analysis Modes Comparison
-
-| Feature | Sequential Mode | Group Chat Mode |
-|---------|-----------------|-----------------|
-| **Agents** | 4 specialists | 6 agents (specialists + debate) |
-| **Execution** | Linear with dependencies | Hierarchical with parallel tasks |
-| **Execution Time** | Faster (typically 1-3 min) | Slower (typically 3-8 min) |
-| **Analysis Type** | Direct synthesis | Debate with risk assessment |
-| **Risk Focus** | Integrated | Dedicated Sceptic agent |
-| **Data Validation** | Implicit | Explicit verification by Trust Agent |
-| **Recommendation** | Direct from Reporter | Consensus after group debate |
-| **Best For** | Quick decisions, lower cost | Thorough analysis, risk-averse investors |
-
-## Configuration Guide
-
-### Environment Variables (`.env` file)
-
-```dotenv
-# Reddit API (optional, needed for sentiment analysis)
-REDDIT_CLIENT_ID=your_reddit_client_id
-REDDIT_CLIENT_SECRET=your_reddit_client_secret
-REDDIT_USER_AGENT=your_user_agent_string
-
-# LLM Configuration (required)
-LLM_PROVIDER=gemini                    # Choose: "gemini" or "openai"
-GEMINI_API_KEY=your_gemini_api_key    # Get from: https://aistudio.google.com/app/apikey
-OPENAI_API_KEY=your_openai_api_key    # Get from: https://platform.openai.com/api-keys
-```
-
-### Changing Default Provider
-
-To change the default LLM provider:
-1. Edit `.env` file and change `LLM_PROVIDER` value
-2. Or select different provider from UI dropdown (this overrides `.env` setting temporarily)
-
-## Technical Indicators Guide
-
-The platform supports the following technical indicators for chart analysis:
-
-### Moving Averages
-- **SMA (Simple Moving Average):** 20, 50, 200 periods - identifies trends
-- **EMA (Exponential Moving Average):** 20, 50 periods - more responsive to recent prices
-
-### Volatility Indicators
-- **Bollinger Bands:** Shows price range and volatility
-  - Upper/Lower bands indicate extremes
-  - Squeeze indicates low volatility
-
-All indicators can be toggled on/off in the "Technical Indicators" section of the sidebar when updating charts.
-
-## Running Batch Experiments
-
-The platform includes a CLI experiment runner for systematic evaluation across multiple tickers, LLM configurations, and runs.
-
-### Quick Start
+Run systematic experiments across all modes and tickers without the UI:
 
 ```bash
-# Dry run — preview what would be executed without making any API calls
+# Preview without API calls
 uv run python run_experiment.py --dry-run
 
-# Full experiment using the default config
+# Run with default config
 uv run python run_experiment.py
 
-# Custom config file
-uv run python run_experiment.py --config my_config.yaml
+# Custom config (supports multiple modes in one run)
+uv run python run_experiment.py --config experiment_config_all_modes.yaml
 
-# Single ticker only (must exist in the config tickers list)
+# Single ticker
 uv run python run_experiment.py --ticker AAPL
 ```
 
-### Configuration (`experiment_config.yaml`)
-
+**Config example (`experiment_config_all_modes.yaml`):**
 ```yaml
 experiment:
-  n_runs: 5                        # number of independent runs per ticker
-  crew_mode: sequential            # sequential | group_chat
-  output_dir: experiments/data     # per-run JSON + MD files (gitignored)
-  results_csv: experiments/results.csv  # aggregated scores (git-tracked)
+  n_runs: 5
+  crew_modes: [sequential, group_chat, single_agent]
+  output_dir: experiments/data_v3
+  results_csv: experiments/results_v3.csv
 
 llm:
-  provider: openai                 # openai | gemini
+  provider: openai
   model: gpt-4.1
   temperature: 0.2
 
 rate_limits:
-  delay_between_runs_seconds: 10   # pause between runs of the same ticker
-  delay_between_tickers_seconds: 30  # extra pause when moving to the next ticker
-  skip_alphavantage: false         # set true to avoid AlphaVantage daily quota (25 req/day)
-
-tickers:
-  - { symbol: AAPL, sector: Technology }
-  - { symbol: MSFT, sector: Technology }
-  # ...
+  delay_between_runs_seconds: 15
+  delay_between_tickers_seconds: 45
+  skip_alphavantage: false
 ```
 
-### Output Structure
+**Outputs per run:**
+- `<TICKER>_<timestamp>.json` — raw API responses captured from agent tools
+- `<TICKER>_<timestamp>.md` — generated investment report
+- `<TICKER>_<timestamp>_eval.json` — full evaluation breakdown (scores + faithfulness reason)
+- `results_v3.csv` — one row per run with all scores including `faithfulness_score`
 
-```
-experiments/
-├── results.csv          # tracked — one row per run with LLM config + eval scores
-└── data/                # gitignored — raw data and reports per run
-    ├── AAPL_20260101_120000.json       # API data captured from agent tools
-    ├── AAPL_20260101_120000.md         # generated investment report
-    └── AAPL_20260101_120000_eval.json  # evaluation breakdown
-```
-
-`results.csv` columns: `timestamp`, `instrument`, `sector`, `mode`, `provider`, `model`, `temperature`, `execution_time`, `overall_score`, `grade`, `structure`, `data_richness`, `sophistication`, `actionability`, `sentiment_balance`.
-
-### Monitoring a Running Experiment
-
+Run in background:
 ```bash
-# Follow live log output
-tail -f experiments/experiment_run.log
-
-# Check how many runs have completed
-wc -l experiments/results.csv
-
-# Preview latest scores
-tail -n 5 experiments/results.csv
+caffeinate -i uv run python run_experiment.py \
+  --config experiment_config_all_modes.yaml \
+  > experiments/run.log 2>&1 &
+tail -f experiments/run.log
 ```
-
-### Tips
-
-- **AlphaVantage free tier** allows 25 requests/day. For large experiments set `skip_alphavantage: true` or increase `delay_between_tickers_seconds`.
-- The Streamlit app also serializes every generated report — same format as the batch runner.
-- To compare providers, run the same config twice with different `llm.provider` values; results accumulate in the same `results.csv`.
-
-## Screenshots
-### Main Interface
-![Main Interface](screenshots/main.png)
-
-### Stock Chart
-![Stock Chart](screenshots/chart.png)
-
-### Generated Report Section in App
-![Report Section](screenshots/report.png)
-
-### Evaluate Rport Quality
-
-![Evaluate Section](screenshots/evaluate.png)
-
-
-## Example Report Output
-
-The platform generates a detailed Markdown report. Here's a snippet from an example report for NVDA ([see full example](results/NVDA.md)):
-
-```markdown
-**NVDA Investment Report**
-
-**Executive Summary:**
-
-We recommend a **Hold** rating on NVDA with a price target range of $150-$160 over the next 6-12 months. This recommendation is based on NVDA's strong fundamentals, dominant position in the AI market, and robust growth prospects, tempered by its high valuation and potential short-term technical headwinds. While the long-term outlook remains positive, the current price reflects much of the anticipated growth, and potential risks warrant a cautious approach.
-
-**Sentiment Analysis Synthesis:**
-
-The sentiment surrounding NVDA is cautiously optimistic. Positive sentiment is fueled by significant deals like Oracle's planned purchase of Nvidia chips and Elon Musk's commitment to expanding GPU infrastructure. These developments underscore the strong demand for Nvidia's technology in the AI sector. However, concerns about slowing cloud spending and potential trade headwinds create a mixed sentiment.
-...
-```
-
-You can find more example reports (like `AAPL.md`) and raw data outputs (like `AAPL_news.json`) in the `/results` directory.
-
 
 ## Disclaimer
-This analysis is for informational purposes only and is not financial or investment advice. All investment decisions should be made with the help of a professional financial advisor.
 
-## Future Enhancements
-* Implement additional data sources for sentiment analysis (e.g., Twitter/X).
-* Implement user accounts and history of generated reports.
-* Support for cryptocurrency and commodity analysis.
-* Custom agent configurations and roles.
-* Batch analysis for multiple stocks.
-* Real-time price alerts and notifications.
-* Support for additional LLM providers (Claude, Llama, etc.).
-* Comparison mode for analyzing multiple stocks side-by-side.
-* Advanced technical analysis with custom indicator parameters.
-* Save and load custom indicator presets.
+This platform is for informational purposes only and does not constitute financial or investment advice.
+
+This platform is for informational purposes only and does not constitute financial or investment advice.
