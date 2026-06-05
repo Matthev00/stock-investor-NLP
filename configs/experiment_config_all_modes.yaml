@@ -1,8 +1,6 @@
 experiment:
   n_runs: 5
   crew_modes:
-    - sequential
-    - group_chat
     - single_agent
   output_dir: experiments/data_v3
   results_csv: experiments/results_v3.csv
