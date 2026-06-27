@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+class AlphaVantageRateLimitError(Exception):
+    """Raised when Alpha Vantage API returns a rate limit / quota-exceeded response."""
+
+
 class AlphaVantageClient:
     """
     Client for interacting with Alpha Vantage API.
@@ -34,7 +38,11 @@ class AlphaVantageClient:
         params['apikey'] = self.api_key
         response = requests.get(self.BASE_URL, params=params)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        rate_limit_msg = data.get("Note") or data.get("Information")
+        if rate_limit_msg and "rate limit" in rate_limit_msg.lower():
+            raise AlphaVantageRateLimitError(rate_limit_msg)
+        return data
 
     def get_company_overview(self, symbol: str) -> Dict:
         """

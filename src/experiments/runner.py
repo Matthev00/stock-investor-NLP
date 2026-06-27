@@ -41,6 +41,8 @@ class ExperimentRunner:
         self._delay_between_runs: float = float(rl.get("delay_between_runs_seconds", 0))
         self._delay_between_tickers: float = float(rl.get("delay_between_tickers_seconds", 0))
         self._skip_alphavantage: bool = bool(rl.get("skip_alphavantage", False))
+        self._av_rate_limit_wait: int = int(rl.get("alphavantage_rate_limit_wait_seconds", 3600))
+        self._av_max_retries: int = int(rl.get("alphavantage_max_retries", 3))
 
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._results_csv.parent.mkdir(parents=True, exist_ok=True)
@@ -55,9 +57,9 @@ class ExperimentRunner:
                 raise ValueError(f"Ticker {only_ticker} not found in config.")
 
         logger.info(
-            "Starting experiment: %d mode(s) × %d ticker(s) × %d run(s), provider=%s, model=%s, temperature=%s",
-            len(self._modes),
+            "Starting experiment: %d ticker(s) × %d mode(s) × %d run(s), provider=%s, model=%s, temperature=%s",
             len(tickers),
+            len(self._modes),
             self._n_runs,
             self._llm_provider,
             self._llm_model,
@@ -65,21 +67,29 @@ class ExperimentRunner:
         )
 
         if dry_run:
-            for mode in self._modes:
-                for entry in tickers:
+            for entry in tickers:
+                for mode in self._modes:
                     logger.info("[dry-run] Would run %s (%s) mode=%s × %d", entry["symbol"], entry.get("sector", ""), mode, self._n_runs)
             return
 
         self._set_llm_env()
 
-        for mode in self._modes:
-            logger.info("=== Starting mode: %s ===", mode)
-            for ticker_idx, entry in enumerate(tickers):
-                symbol: str = entry["symbol"].upper()
-                sector: str = entry.get("sector", "")
-                if ticker_idx > 0 and self._delay_between_tickers > 0:
-                    logger.info("Rate limit: sleeping %.0fs before next ticker…", self._delay_between_tickers)
-                    time.sleep(self._delay_between_tickers)
+        for ticker_idx, entry in enumerate(tickers):
+            symbol: str = entry["symbol"].upper()
+            sector: str = entry.get("sector", "")
+            if ticker_idx > 0 and self._delay_between_tickers > 0:
+                hours = self._delay_between_tickers / 3600
+                next_time = datetime.now() + __import__('datetime').timedelta(seconds=self._delay_between_tickers)
+                next_symbol = tickers[ticker_idx]["symbol"].upper() if ticker_idx < len(tickers) else "N/A"
+                logger.info(
+                    "\n⏳ Rate limit: waiting %.1f hours before next ticker…\n   Next ticker: %s at %s\n",
+                    hours, next_symbol, next_time.strftime("%Y-%m-%d %H:%M:%S")
+                )
+                time.sleep(self._delay_between_tickers)
+
+            logger.info("=== Instrument: %s (%s) ===", symbol, sector)
+            for mode in self._modes:
+                logger.info("--- Mode: %s ---", mode)
                 for run_idx in range(1, self._n_runs + 1):
                     logger.info("→ [%s] %s run %d/%d", mode, symbol, run_idx, self._n_runs)
                     self._execute_run(symbol, sector, run_idx, mode)
@@ -92,6 +102,14 @@ class ExperimentRunner:
     def _set_llm_env(self) -> None:
         os.environ["LLM_MODEL"] = self._llm_model
         os.environ["LLM_TEMPERATURE"] = str(self._llm_temperature)
+        os.environ["ALPHAVANTAGE_RATE_LIMIT_WAIT"] = str(self._av_rate_limit_wait)
+        os.environ["ALPHAVANTAGE_MAX_RETRIES"] = str(self._av_max_retries)
+        if self._skip_alphavantage:
+            os.environ["SKIP_ALPHAVANTAGE"] = "true"
+            logger.info("AlphaVantage: SKIPPED (skip_alphavantage=true)")
+        else:
+            os.environ.pop("SKIP_ALPHAVANTAGE", None)
+            logger.info("AlphaVantage: ENABLED (rate_limit_wait=%ds, max_retries=%d)", self._av_rate_limit_wait, self._av_max_retries)
 
     def _execute_run(self, symbol: str, sector: str, run_idx: int, mode: str) -> None:
         timestamp = datetime.now()

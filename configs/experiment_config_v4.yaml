@@ -1,0 +1,37 @@
+experiment:
+  n_runs: 5
+  crew_modes:
+    - single_agent
+    - sequential
+    - group_chat
+  output_dir: experiments/data_v4
+  results_csv: experiments/results_v4.csv
+
+llm:
+  provider: openai
+  model: gpt-4.1
+  temperature: 0.2
+
+# Per-instrument execution: all modes × n_runs for one ticker, then delay before the next.
+# AlphaVantage free tier: 25 req/day.
+# Each run calls the AV tool once (~4 API calls internally).
+# Set skip_alphavantage: true if the daily quota is exhausted.
+# alphavantage_rate_limit_wait_seconds: how long to wait and retry when rate-limited (default 3600).
+rate_limits:
+  delay_between_runs_seconds: 10
+  delay_between_tickers_seconds: 86400  # 24h = reset AlphaVantage daily limit (25 req/day)
+  skip_alphavantage: false
+  alphavantage_rate_limit_wait_seconds: 3600
+  alphavantage_max_retries: 3
+
+tickers:
+  - { symbol: AAPL, sector: Technology }
+  - { symbol: MSFT, sector: Technology }
+  - { symbol: JPM,  sector: Finance }
+  - { symbol: BAC,  sector: Finance }
+  - { symbol: JNJ,  sector: Healthcare }
+  - { symbol: PFE,  sector: Healthcare }
+  - { symbol: XOM,  sector: Energy }
+  - { symbol: WMT,  sector: Consumer Staples }
+  - { symbol: KO,   sector: Consumer Staples }
+  - { symbol: CAT,  sector: Industrials }

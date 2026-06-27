@@ -1,13 +1,34 @@
+import logging
+import os
+import time
+
 from src.utils import dumps
-
 from crewai.tools import tool
-
-from src.services.alphavantage.alphavantage_client import AlphaVantageClient
-
-
-client = AlphaVantageClient()
-
+from src.services.alphavantage.alphavantage_client import AlphaVantageClient, AlphaVantageRateLimitError
 from src.experiments import tool_capture
+
+logger = logging.getLogger(__name__)
+
+_client: AlphaVantageClient | None = None
+
+
+def _get_client() -> AlphaVantageClient:
+    global _client
+    if _client is None:
+        _client = AlphaVantageClient()
+    return _client
+
+
+def _is_skipped() -> bool:
+    return os.getenv("SKIP_ALPHAVANTAGE", "false").lower() == "true"
+
+
+def _rate_limit_wait_seconds() -> int:
+    return int(os.getenv("ALPHAVANTAGE_RATE_LIMIT_WAIT", "3600"))
+
+
+def _max_retries() -> int:
+    return int(os.getenv("ALPHAVANTAGE_MAX_RETRIES", "3"))
 
 
 @tool
@@ -56,35 +77,52 @@ def analyse_alphavantage_sentiment(
             }
         }
     """
-    try:
-        # Get sentiment data
-        sentiment_data = client.get_news_sentiment(stock_symbol, limit=limit)
-        
-        # Get company overview
-        company_data = client.get_company_overview(stock_symbol)
-        
-        # Get earnings data
-        earnings_data = client.get_earnings(stock_symbol)
-        
-        # Combine all data
-        result = {
-            'sentiment_analysis': sentiment_data,
-            'company_overview': company_data,
-            'earnings': earnings_data,
-            'summary': client.get_market_sentiment_summary(stock_symbol)
-        }
-        
-        json_str = dumps(result, indent=2)
-        tool_capture.record("alphavantage_sentiment", json_str)
-        return json_str
+    if _is_skipped():
+        skipped = {"skipped": True, "message": "AlphaVantage skipped (SKIP_ALPHAVANTAGE=true)"}
+        tool_capture.record("alphavantage_sentiment", dumps(skipped))
+        return dumps(skipped, indent=2)
 
-    except Exception as e:
-        error_response = {
-            "error": str(e),
-            "message": f"Failed to analyze data for {stock_symbol} using Alpha Vantage. "
-                      "Please check if the stock symbol is valid and API key is configured."
-        }
-        return dumps(error_response, indent=2)
+    max_retries = _max_retries()
+    wait_seconds = _rate_limit_wait_seconds()
+
+    for attempt in range(max_retries + 1):
+        try:
+            client = _get_client()
+            sentiment_data = client.get_news_sentiment(stock_symbol, limit=limit)
+            company_data = client.get_company_overview(stock_symbol)
+            earnings_data = client.get_earnings(stock_symbol)
+            result = {
+                'sentiment_analysis': sentiment_data,
+                'company_overview': company_data,
+                'earnings': earnings_data,
+                'summary': client.get_market_sentiment_summary(stock_symbol)
+            }
+            json_str = dumps(result, indent=2)
+            tool_capture.record("alphavantage_sentiment", json_str)
+            return json_str
+
+        except AlphaVantageRateLimitError as e:
+            if attempt < max_retries:
+                logger.warning(
+                    "AlphaVantage rate limited (attempt %d/%d). Waiting %.0fs before retry…",
+                    attempt + 1, max_retries, wait_seconds,
+                )
+                time.sleep(wait_seconds)
+            else:
+                logger.error("AlphaVantage rate limit exceeded after %d retries: %s", max_retries, e)
+                error_response = {"error": "rate_limit", "message": str(e)}
+                tool_capture.record("alphavantage_sentiment", dumps(error_response))
+                return dumps(error_response, indent=2)
+
+        except Exception as e:
+            error_response = {
+                "error": str(e),
+                "message": f"Failed to analyze data for {stock_symbol} using Alpha Vantage. "
+                           "Please check if the stock symbol is valid and API key is configured.",
+            }
+            return dumps(error_response, indent=2)
+
+    return dumps({"error": "unknown", "message": "Unexpected exit from retry loop"}, indent=2)
 
 
 @tool
@@ -117,7 +155,7 @@ def get_company_fundamentals_alpha(stock_symbol: str) -> str:
         }
     """
     try:
-        company_data = client.get_company_overview(stock_symbol)
+        company_data = _get_client().get_company_overview(stock_symbol)
         return dumps(company_data, indent=2)
     except Exception as e:
         error_response = {
