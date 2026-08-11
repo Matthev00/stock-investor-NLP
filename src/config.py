@@ -51,8 +51,8 @@ class LLMConfig:
     def _set_model_and_params(self):
         """Set model name and default parameters based on provider."""
         if self.provider == LLMProvider.GEMINI:
-            default_model_sequential = "gemini/gemini-2.0-flash-lite"
-            default_model_group_chat = "gemini/gemini-2.0-flash"
+            default_model_sequential = "gemini/gemini-3.5-flash-lite"
+            default_model_group_chat = "gemini/gemini-3.6-flash"
             default_temperature = 0.5
         elif self.provider == LLMProvider.OPENAI:
             default_model_sequential = "gpt-4.1"

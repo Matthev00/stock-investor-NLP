@@ -1,9 +1,13 @@
 import json
 import logging
+import os
 from typing import Any
 
 from deepeval.metrics import FaithfulnessMetric
+from deepeval.models import GeminiModel
 from deepeval.test_case import LLMTestCase
+
+from src.config import LLMProvider
 from src.utils.stock_faithfulness_template import StockFaithfulnessTemplate
 
 logger = logging.getLogger(__name__)
@@ -35,9 +39,25 @@ class FaithfulnessEvaluator:
     data collected by the agents (retrieval context).
     """
 
-    def __init__(self, model: str = "gpt-4.1", threshold: float = 0.5):
-        self.model = model
+    def __init__(self, model: str = "gpt-4.1", threshold: float = 0.5, provider: str = "openai"):
+        self.model = self._build_model(provider, model)
         self.threshold = threshold
+
+    @staticmethod
+    def _build_model(provider: str, model: str) -> str | GeminiModel:
+        """Resolve the judge model for the given provider.
+
+        DeepEval treats a bare model string as an OpenAI model, so Gemini has to be
+        passed as an explicit GeminiModel instance.
+        """
+        if LLMProvider(provider.lower()) is not LLMProvider.GEMINI:
+            return model
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not found in environment variables")
+        # Configs use the LiteLLM "gemini/<model>" form for CrewAI; DeepEval wants the bare name.
+        return GeminiModel(model=model.removeprefix("gemini/"), api_key=api_key, temperature=0.0)
 
     def evaluate(
         self,
