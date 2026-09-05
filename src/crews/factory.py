@@ -19,13 +19,15 @@ class StockAnalysisCrewFactory:
     """Factory for creating crew instances based on mode."""
 
     @staticmethod
-    def create(mode: str, provider: Optional[str] = None):
+    def create(mode: str, provider: Optional[str] = None, skip_alphavantage: bool = False):
         """
         Create a crew instance based on mode.
 
         Args:
             mode: "sequential" or "group_chat"
             provider: "gemini" or "openai". If None, uses LLM_PROVIDER from env.
+            skip_alphavantage: Omit the AlphaVantage tool so runs record no data for it
+                instead of the placeholder values its client returns once the quota is spent.
 
         Returns:
             Instance of SequentialStockAnalysisCrew or GroupChatStockAnalysisCrew
@@ -36,10 +38,10 @@ class StockAnalysisCrewFactory:
         config = load_config(provider)
 
         if mode.lower() == CrewMode.SEQUENTIAL.value:
-            return SequentialStockAnalysisCrew(config)
+            return SequentialStockAnalysisCrew(config, skip_alphavantage=skip_alphavantage)
         elif mode.lower() == CrewMode.GROUP_CHAT.value:
-            return GroupChatStockAnalysisCrew(config)
+            return GroupChatStockAnalysisCrew(config, skip_alphavantage=skip_alphavantage)
         elif mode.lower() == CrewMode.SINGLE_AGENT.value:
-            return SingleAgentStockAnalysisCrew(config)
+            return SingleAgentStockAnalysisCrew(config, skip_alphavantage=skip_alphavantage)
         else:
             raise ValueError(f"Unknown crew mode: {mode}. Use 'sequential', 'group_chat', or 'single_agent'.")

@@ -10,8 +10,9 @@ from src.config import LLMConfig
 class SingleAgentStockAnalysisCrew:
     """Single-agent mode — one autonomous analyst with all tools performs the full analysis."""
 
-    def __init__(self, config: LLMConfig):
+    def __init__(self, config: LLMConfig, skip_alphavantage: bool = False):
         self.config = config
+        self.skip_alphavantage = skip_alphavantage
         self.llm = LLM(
             model=self.config.model_single_agent,
             api_key=self.config.api_key,
@@ -21,8 +22,10 @@ class SingleAgentStockAnalysisCrew:
 
     def _initialize_agent_and_task(self):
         """Initialize the single agent and its comprehensive analysis task."""
-        analyst = create_single_agent(self.llm)
-        analysis_task = create_task(TaskType.SINGLE_AGENT_ANALYSIS, analyst)
+        analyst = create_single_agent(self.llm, skip_alphavantage=self.skip_alphavantage)
+        analysis_task = create_task(
+            TaskType.SINGLE_AGENT_ANALYSIS, analyst, skip_alphavantage=self.skip_alphavantage
+        )
 
         self.crew = Crew(
             agents=[analyst],

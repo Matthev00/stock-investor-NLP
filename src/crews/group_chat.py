@@ -18,8 +18,9 @@ from src.config import LLMConfig
 class GroupChatStockAnalysisCrew:
     """Group Chat mode - 6 agents in hierarchical debate with Leader orchestrating."""
 
-    def __init__(self, config: LLMConfig):
+    def __init__(self, config: LLMConfig, skip_alphavantage: bool = False):
         self.config = config
+        self.skip_alphavantage = skip_alphavantage
         self.llm = LLM(
             model=self.config.model_group_chat,
             api_key=self.config.api_key,
@@ -30,7 +31,7 @@ class GroupChatStockAnalysisCrew:
     def _initialize_agents(self):
         """Initialize all 6 agents for group chat mode."""
         # Original 3 specialist agents
-        self.researcher = create_researcher_agent(self.llm)
+        self.researcher = create_researcher_agent(self.llm, skip_alphavantage=self.skip_alphavantage)
         self.technical_analyst = create_technical_analyst_agent(self.llm)
         self.fundamental_analyst = create_fundamental_analyst_agent(self.llm)
 

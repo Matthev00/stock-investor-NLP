@@ -9,14 +9,17 @@ from src.tools.finnhub_sentiment_tool import analyse_finnhub_sentiment
 from src.tools.alphavantage_tools import analyse_alphavantage_sentiment
 
 
-def create_researcher_agent(llm: LLM) -> Agent:
+def create_researcher_agent(llm: LLM, skip_alphavantage: bool = False) -> Agent:
     """Create Researcher agent for data gathering and sentiment analysis."""
+    tools = [analyse_finnhub_sentiment, fetch_yahoo_news, fetch_yahoo_analysis]
+    if not skip_alphavantage:
+        tools.insert(1, analyse_alphavantage_sentiment)
     return Agent(
         role="Senior Stock Market Researcher",
         goal="Gather and analyze comprehensive data about {stock_symbol}",
         backstory="With a Ph.D. in Financial Economics and 15 years of experience in equity research, you're known for meticulous data collection and insightful analysis.",
         llm=llm,
-        tools=[analyse_finnhub_sentiment, analyse_alphavantage_sentiment, fetch_yahoo_news, fetch_yahoo_analysis],
+        tools=tools,
         verbose=True,
         memory=True,
         allow_code_execution=False,
@@ -107,8 +110,17 @@ def create_leader_agent(llm: LLM) -> Agent:
     )
 
 
-def create_single_agent(llm: LLM) -> Agent:
+def create_single_agent(llm: LLM, skip_alphavantage: bool = False) -> Agent:
     """Create a single self-sufficient agent with all tools for stock analysis."""
+    single_agent_tools = [
+        analyse_finnhub_sentiment,
+        fetch_yahoo_news,
+        fetch_yahoo_analysis,
+        analyse_technical_indicators,
+        analyse_fundamentals,
+    ]
+    if not skip_alphavantage:
+        single_agent_tools.insert(1, analyse_alphavantage_sentiment)
     return Agent(
         role="Autonomous Investment Analyst",
         goal=(
@@ -123,14 +135,7 @@ def create_single_agent(llm: LLM) -> Agent:
             "You gather your own data, perform multi-dimensional analysis, and deliver definitive investment recommendations."
         ),
         llm=llm,
-        tools=[
-            analyse_finnhub_sentiment,
-            analyse_alphavantage_sentiment,
-            fetch_yahoo_news,
-            fetch_yahoo_analysis,
-            analyse_technical_indicators,
-            analyse_fundamentals,
-        ],
+        tools=single_agent_tools,
         verbose=True,
         memory=True,
         allow_code_execution=False,

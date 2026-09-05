@@ -98,7 +98,7 @@ class ExperimentRunner:
         ts_str = timestamp.strftime("%Y%m%d_%H%M%S")
         stem = f"{symbol}_{ts_str}"
 
-        crew = StockAnalysisCrewFactory.create(mode, self._llm_provider)
+        crew = StockAnalysisCrewFactory.create(mode, self._llm_provider, skip_alphavantage=self._skip_alphavantage)
         tool_capture.start()
         result = crew.run(symbol)
         api_data = tool_capture.collect()

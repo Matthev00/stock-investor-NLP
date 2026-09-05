@@ -15,8 +15,9 @@ from src.config import LLMConfig
 class SequentialStockAnalysisCrew:
     """Sequential execution mode - agents work in linear order with dependencies."""
 
-    def __init__(self, config: LLMConfig):
+    def __init__(self, config: LLMConfig, skip_alphavantage: bool = False):
         self.config = config
+        self.skip_alphavantage = skip_alphavantage
         self.llm = LLM(
             model=self.config.model_sequential,
             api_key=self.config.api_key,
@@ -26,7 +27,7 @@ class SequentialStockAnalysisCrew:
 
     def _initialize_agents_and_tasks(self):
         """Initialize all agents and tasks for sequential mode."""
-        researcher = create_researcher_agent(self.llm)
+        researcher = create_researcher_agent(self.llm, skip_alphavantage=self.skip_alphavantage)
         technical_analyst = create_technical_analyst_agent(self.llm)
         fundamental_analyst = create_fundamental_analyst_agent(self.llm)
         reporter = create_reporter_agent(self.llm)

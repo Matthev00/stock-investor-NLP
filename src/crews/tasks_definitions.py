@@ -4,6 +4,11 @@ from typing import Optional
 
 from src.crews.models import StockReportOutput
 
+# Fragments of the single-agent prompt that only make sense while the AlphaVantage tool is wired in.
+_ALPHAVANTAGE_STEP = "(7) assess news sentiment from AlphaVantage (analyse_alphavantage_sentiment_tool). "
+_SENTIMENT_SOURCES = "Reddit, news, Finnhub, and AlphaVantage"
+_SENTIMENT_SOURCES_NO_ALPHAVANTAGE = "Reddit, news, and Finnhub"
+
 
 class TaskType(Enum):
     """Enumeration of available task types."""
@@ -170,6 +175,7 @@ def create_task(
     task_type: TaskType,
     agent: Agent,
     context: Optional[list] = None,
+    skip_alphavantage: bool = False,
 ) -> Task:
     """
     Factory function to create tasks based on type.
@@ -178,6 +184,7 @@ def create_task(
         task_type: The type of task to create (TaskType enum).
         agent: The agent that will execute the task.
         context: Optional context list for tasks that require previous outputs.
+        skip_alphavantage: Drop AlphaVantage instructions when the tool is not wired in.
 
     Returns:
         A configured Task instance.
@@ -192,9 +199,15 @@ def create_task(
     if not config:
         raise ValueError(f"No configuration found for task type: {task_type}")
 
+    description = config["description"]
+    expected_output = config["expected_output"]
+    if skip_alphavantage:
+        description = description.replace(_ALPHAVANTAGE_STEP, "")
+        expected_output = expected_output.replace(_SENTIMENT_SOURCES, _SENTIMENT_SOURCES_NO_ALPHAVANTAGE)
+
     task_kwargs = {
-        "description": config["description"],
-        "expected_output": config["expected_output"],
+        "description": description,
+        "expected_output": expected_output,
         "agent": agent,
     }
 
