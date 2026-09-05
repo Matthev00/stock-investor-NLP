@@ -39,7 +39,7 @@ class FaithfulnessEvaluator:
     data collected by the agents (retrieval context).
     """
 
-    def __init__(self, model: str = "gpt-4.1", threshold: float = 0.5, provider: str = "openai"):
+    def __init__(self, model: str = "gpt-5", threshold: float = 0.5, provider: str = "openai"):
         self.model = self._build_model(provider, model)
         self.threshold = threshold
 

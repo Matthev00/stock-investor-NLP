@@ -11,7 +11,7 @@ llm:
   temperature: 0.2
 
 # Delays to stay within API rate limits across all three modes.
-# Total runs: 3 modes × 10 tickers × 5 runs = 150 runs.
+# Total runs: 3 modes × 13 tickers × 5 runs = 195 runs.
 # AlphaVantage free tier: 25 req/day — set skip_alphavantage: true if needed.
 rate_limits:
   delay_between_runs_seconds: 15
@@ -29,3 +29,8 @@ tickers:
   - { symbol: WMT,  sector: Consumer Staples }
   - { symbol: KO,   sector: Consumer Staples }
   - { symbol: CAT,  sector: Industrials }
+
+  # Small caps (< $2B) — same sectors as above, so company size is the comparison variable
+  - { symbol: PLAB, sector: Technology }
+  - { symbol: PCRX, sector: Healthcare }
+  - { symbol: KFRC, sector: Industrials }

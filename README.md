@@ -33,7 +33,7 @@ Gemini is also supported — switch via UI dropdown or `LLM_PROVIDER` in `.env`.
 Every generated report can be evaluated via the **Evaluate Report Quality** button:
 
 - **Rule-based evaluator** — scores 5 dimensions (Structure, Data Richness, Sophistication, Actionability, Sentiment Balance) visualized as a radar chart.
-- **LLM-as-judge Faithfulness** (DeepEval) — extracts *truths* from raw API data and *claims* from the report, then uses `gpt-4.1` to check whether the report's claims are grounded in the source data. Returns a 0–1 score + written justification. Uses a custom financial-domain prompt template.
+- **LLM-as-judge Faithfulness** (DeepEval) — extracts *truths* from raw API data and *claims* from the report, then uses `gpt-5` to check whether the report's claims are grounded in the source data. Returns a 0–1 score + written justification. Uses a custom financial-domain prompt template.
 
 ## Setup
 
