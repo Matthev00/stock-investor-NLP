@@ -72,6 +72,7 @@ class ExperimentRunner:
 
         self._set_llm_env()
 
+        failures: list[str] = []
         for mode in self._modes:
             logger.info("=== Starting mode: %s ===", mode)
             for ticker_idx, entry in enumerate(tickers):
@@ -82,11 +83,19 @@ class ExperimentRunner:
                     time.sleep(self._delay_between_tickers)
                 for run_idx in range(1, self._n_runs + 1):
                     logger.info("→ [%s] %s run %d/%d", mode, symbol, run_idx, self._n_runs)
-                    self._execute_run(symbol, sector, run_idx, mode)
+                    try:
+                        self._execute_run(symbol, sector, run_idx, mode)
+                    except Exception:
+                        # One failed run must not abandon the rest of the matrix; a long
+                        # experiment is expected to hit the occasional API timeout or 429.
+                        logger.exception("Run failed: [%s] %s run %d/%d", mode, symbol, run_idx, self._n_runs)
+                        failures.append(f"{mode}/{symbol}#{run_idx}")
                     if run_idx < self._n_runs and self._delay_between_runs > 0:
                         logger.info("Rate limit: sleeping %.0fs before next run…", self._delay_between_runs)
                         time.sleep(self._delay_between_runs)
 
+        if failures:
+            logger.warning("%d run(s) failed and were skipped: %s", len(failures), ", ".join(failures))
         logger.info("Experiment complete. Results: %s", self._results_csv)
 
     def _set_llm_env(self) -> None:

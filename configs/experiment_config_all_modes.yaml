@@ -18,7 +18,7 @@ llm:
 rate_limits:
   delay_between_runs_seconds: 15
   delay_between_tickers_seconds: 45
-  skip_alphavantage: false
+  skip_alphavantage: true
 
 tickers:
   - { symbol: AAPL, sector: Technology }
