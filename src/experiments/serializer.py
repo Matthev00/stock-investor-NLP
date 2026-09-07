@@ -1,9 +1,12 @@
 import csv
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
 from src.experiments.models import ExperimentRun
+
+logger = logging.getLogger(__name__)
 
 CSV_COLUMNS = [
     "timestamp",
@@ -23,6 +26,7 @@ CSV_COLUMNS = [
     "sentiment_balance",
     "recommendation",
     "faithfulness_score",
+    "judge_model",
 ]
 
 
@@ -73,9 +77,22 @@ def append_csv_row(run: ExperimentRun, sector: str, evaluation: dict, results_cs
         "sentiment_balance": round(dim.get("sentiment_balance", 0), 2),
         "recommendation": run.recommendation or evaluation.get("metrics", {}).get("actionability", {}).get("primary_action", ""),
         "faithfulness_score": evaluation.get("faithfulness", {}).get("score"),
+        "judge_model": evaluation.get("faithfulness", {}).get("model", ""),
     }
+    fieldnames = CSV_COLUMNS
+    if not write_header:
+        # A results file written before a column existed keeps its own header, so rows
+        # stay aligned with it instead of silently gaining an extra field.
+        with open(results_csv, newline="", encoding="utf-8") as f:
+            existing = next(csv.reader(f), None)
+        if existing and existing != CSV_COLUMNS:
+            fieldnames = existing
+            missing = [c for c in CSV_COLUMNS if c not in existing]
+            if missing:
+                logger.warning("%s predates column(s) %s — not recorded for these rows", results_csv, missing)
+
     with open(results_csv, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         if write_header:
             writer.writeheader()
         writer.writerow(row)

@@ -40,7 +40,9 @@ class FaithfulnessEvaluator:
     """
 
     def __init__(self, model: str = "gpt-5", threshold: float = 0.5, provider: str = "openai"):
-        self.model = self._build_model(provider, model)
+        # Configs use the LiteLLM "gemini/<model>" form for CrewAI; DeepEval wants the bare name.
+        self.model_name = model.removeprefix("gemini/")
+        self.model = self._build_model(provider, self.model_name)
         self.threshold = threshold
 
     @staticmethod
@@ -56,8 +58,7 @@ class FaithfulnessEvaluator:
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
-        # Configs use the LiteLLM "gemini/<model>" form for CrewAI; DeepEval wants the bare name.
-        return GeminiModel(model=model.removeprefix("gemini/"), api_key=api_key, temperature=0.0)
+        return GeminiModel(model=model, api_key=api_key, temperature=0.0)
 
     def evaluate(
         self,
@@ -73,12 +74,13 @@ class FaithfulnessEvaluator:
             api_data: Raw data collected by agents (keys from _RETRIEVAL_FIELDS).
 
         Returns:
-            Dict with 'score' (float 0-1 or None) and 'reason' (str).
+            Dict with 'score' (float 0-1 or None), 'reason' (str) and the
+            'model' that judged, so results stay attributable to a judge.
         """
         retrieval_context = _build_retrieval_context(api_data)
         if not retrieval_context:
             logger.warning("No retrieval context for %s — skipping faithfulness evaluation", stock_symbol)
-            return {"score": None, "reason": "No retrieval context available"}
+            return {"score": None, "reason": "No retrieval context available", "model": self.model_name}
 
         metric = FaithfulnessMetric(
             threshold=self.threshold,
@@ -94,7 +96,7 @@ class FaithfulnessEvaluator:
 
         try:
             metric.measure(test_case)
-            return {"score": metric.score, "reason": metric.reason}
+            return {"score": metric.score, "reason": metric.reason, "model": self.model_name}
         except Exception as e:
             logger.exception("Faithfulness evaluation failed for %s", stock_symbol)
-            return {"score": None, "reason": f"Evaluation failed: {e}"}
+            return {"score": None, "reason": f"Evaluation failed: {e}", "model": self.model_name}
