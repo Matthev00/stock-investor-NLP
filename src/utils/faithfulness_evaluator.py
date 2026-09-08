@@ -86,6 +86,9 @@ class FaithfulnessEvaluator:
             threshold=self.threshold,
             model=self.model,
             include_reason=True,
+            # An unverifiable claim is a defect in a report meant to rest on the collected data,
+            # so it costs the same as a contradicted one instead of being waved through.
+            penalize_ambiguous_claims=True,
             evaluation_template=StockFaithfulnessTemplate,
         )
         test_case = LLMTestCase(

@@ -128,19 +128,26 @@ class StockFaithfulnessTemplate(FaithfulnessTemplate):
             stock investment report, determine whether it contradicts the raw financial data
             provided as retrieval context.
 
+            A report is faithful only when its factual assertions are traceable to the data.
+            An unsupported number is as much a defect as a wrong one, so absence of evidence
+            counts against the claim rather than excusing it.
+
             Verdict rules:
-            - "yes"  → the retrieval context supports or is consistent with the claim
-            - "no"   → the retrieval context DIRECTLY contradicts the claim (e.g. wrong number,
-                        opposite sentiment direction, incorrect analyst rating count)
-            - "idk"  → the retrieval context does not mention this topic, so the claim
-                        cannot be verified (treat as unverifiable, NOT as false)
+            - "yes"  → a specific data point in the retrieval context directly supports the claim
+            - "no"   → the retrieval context contradicts the claim, OR the claim asserts a
+                        specific fact, figure, rating or event that the context does not contain
+            - "idk"  → reserved for claims that are explicitly subjective or forward-looking
+                        ("we expect", "the outlook appears") and therefore not checkable at all
 
             Important guidelines:
             - Generate EXACTLY one verdict per claim — length of 'verdicts' MUST equal number of claims.
-            - Only use "no" when there is a direct, clear contradiction with a specific data point.
-            - Rounding differences (e.g. 94.8B vs 94.83B) should NOT be marked "no".
-            - Directional claims (e.g. "sentiment is positive") confirmed by a positive score are "yes".
-            - Claims about analyst consensus direction that match the data are "yes" even if counts differ slightly.
+            - Do not award "yes" on plausibility. If you cannot point to the supporting value in
+              the context, the verdict is "no".
+            - Rounding to the same magnitude is acceptable (94.8B vs 94.83B); a restated or
+              recomputed figure that changes the value is "no".
+            - A directional claim needs the underlying value in the context, not merely a
+              matching intuition; derived characterisations ("strong margins") need the metric.
+            - Analyst consensus counts must match the data. Approximate counts are "no".
             - Do NOT use prior financial knowledge — judge only against the provided retrieval context.
             - No reason needed for "yes" verdicts.
 
