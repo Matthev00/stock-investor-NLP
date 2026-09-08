@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from deepeval.metrics import FaithfulnessMetric
-from deepeval.models import GeminiModel
+from deepeval.models import GeminiModel, GPTModel
 from deepeval.test_case import LLMTestCase
 
 from src.config import LLMProvider
@@ -46,19 +46,22 @@ class FaithfulnessEvaluator:
         self.threshold = threshold
 
     @staticmethod
-    def _build_model(provider: str, model: str) -> str | GeminiModel:
+    def _build_model(provider: str, model: str) -> GPTModel | GeminiModel:
         """Resolve the judge model for the given provider.
 
-        DeepEval treats a bare model string as an OpenAI model, so Gemini has to be
-        passed as an explicit GeminiModel instance.
+        DeepEval treats a bare model string as an OpenAI model, so both providers are
+        built explicitly here instead.
         """
-        if LLMProvider(provider.lower()) is not LLMProvider.GEMINI:
-            return model
+        if LLMProvider(provider.lower()) is LLMProvider.GEMINI:
+            api_key = os.getenv("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not found in environment variables")
+            return GeminiModel(model=model, api_key=api_key, temperature=0.0)
 
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
-        return GeminiModel(model=model, api_key=api_key, temperature=0.0)
+        # Extracting truths from ~20k characters of raw API data takes a GPT-5 judge past
+        # DeepEval's per-attempt timeout at default reasoning; low effort lands it in ~110s.
+        generation_kwargs = {"reasoning_effort": "low"} if model.startswith("gpt-5") else None
+        return GPTModel(model=model, generation_kwargs=generation_kwargs)
 
     def evaluate(
         self,
