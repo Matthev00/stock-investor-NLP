@@ -65,6 +65,28 @@ def rescore(stem: Path, evaluator: FaithfulnessEvaluator) -> dict:
     return faithfulness
 
 
+def load_all_scores(data_dir: Path) -> dict[str, dict]:
+    """Read every faithfulness score already on disk, keyed for CSV matching.
+
+    Used to resync the CSV even for runs a previous, interrupted invocation
+    already scored: rescore() persists each eval json immediately, but the CSV
+    was only written once at the end of the batch, so a killed process leaves
+    the CSV stale despite the json already holding the answer.
+    """
+    scores: dict[str, dict] = {}
+    for eval_path in sorted(data_dir.glob("*_eval.json")):
+        stem = Path(str(eval_path)[: -len("_eval.json")])
+        run_path = stem.with_suffix(".json")
+        if not run_path.exists():
+            continue
+        faithfulness = _load(eval_path).get("faithfulness") or {}
+        if faithfulness.get("score") is None:
+            continue
+        run = _load(run_path)
+        scores[_key(run["instrument"], run["timestamp"])] = faithfulness
+    return scores
+
+
 def update_csv(results_csv: Path, scores: dict[str, dict]) -> int:
     """Write recomputed scores back into the results CSV, matched on timestamp."""
     if not results_csv.exists():
@@ -144,9 +166,12 @@ def main() -> None:
         score = faithfulness.get("score")
         logger.info("  score=%s", f"{score:.3f}" if score is not None else "N/A")
 
-    updated = update_csv(Path(args.results_csv), scores)
+    # Resync from every eval json on disk, not just what this invocation computed —
+    # an interrupted earlier run can leave scored jsons whose CSV row was never written.
+    all_scores = load_all_scores(data_dir)
+    updated = update_csv(Path(args.results_csv), all_scores)
     scored = sum(1 for v in scores.values() if v.get("score") is not None)
-    logger.info("Done: %d scored, %d still unscored, %d CSV row(s) updated", scored, len(stems) - scored, updated)
+    logger.info("Done: %d scored this run, %d still unscored, %d CSV row(s) synced", scored, len(stems) - scored, updated)
     if failures:
         logger.warning("%d run(s) raised: %s", len(failures), ", ".join(failures))
 
