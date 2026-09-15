@@ -12,6 +12,12 @@ from src.utils.stock_faithfulness_template import StockFaithfulnessTemplate
 
 logger = logging.getLogger(__name__)
 
+# DeepEval's own default per-attempt timeout (~88.5s, derived from a 180s outer budget
+# split across 2 retries) is tighter than gpt-5 needs on our ~20k-char retrieval context,
+# even at low reasoning effort. setdefault so an explicit override (e.g. the one
+# rescore_faithfulness.py's batch runs pass on the command line) still wins.
+os.environ.setdefault("DEEPEVAL_PER_ATTEMPT_TIMEOUT_SECONDS_OVERRIDE", "600")
+
 _RETRIEVAL_FIELDS = [
     "yahoo_news",
     "yahoo_fundamentals",

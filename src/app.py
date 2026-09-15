@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from markdown_it import MarkdownIt
 
-from src.config import LLMProvider, get_default_provider, load_config
+from src.config import LLMProvider, load_config
 from src.crews import CrewMode, StockAnalysisCrewFactory
 from src.experiments import serializer as exp_serializer
 from src.experiments import tool_capture
@@ -105,8 +105,11 @@ st.set_page_config("Stock Investment Report", layout="wide")
 if not st.session_state.authenticated:
     st.title("🔐 Stock Investment Analysis Platform")
     st.subheader("Login")
-    password = st.text_input("Password", type="password")
-    if st.button("Login", type="primary"):
+    # A bare text_input + button doesn't submit on Enter — a form does.
+    with st.form("login_form"):
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login", type="primary")
+    if submitted:
         expected = st.secrets["password_hash"]
         entered = hashlib.sha256(password.encode()).hexdigest()
         if hmac.compare_digest(entered, expected):
@@ -129,10 +132,11 @@ time_period = st.sidebar.selectbox("Time period", [period["period"] for period i
 chart_type = st.sidebar.selectbox("Chart Type", ["Candlestick", "Line"])
 
 llm_provider = st.sidebar.selectbox(
+    # Gemini stays supported in the backend (config.py, rescore_faithfulness.py) — it's
+    # hidden here only because the client's deployment has no Gemini API key.
     "LLM Provider",
-    options=[provider.value for provider in LLMProvider],
-    index=0 if get_default_provider().lower() == "gemini" else 1,
-    format_func=lambda x: "Gemini" if x == "gemini" else "OpenAI",
+    options=[LLMProvider.OPENAI.value],
+    format_func=lambda x: "OpenAI",
 )
 
 crew_mode = st.sidebar.radio(
@@ -167,66 +171,87 @@ with st.sidebar.expander("Select Indicators", expanded=True):
 sidebar_col1, sidebar_col2 = st.sidebar.columns(spec=[0.4, 0.6], gap="small")
 
 if sidebar_col1.button("Update", type="primary", use_container_width=True):
-    data = load_stock_data(ticker, next(filter(lambda x: x["period"] == time_period, INTERVAL_MAPPING)))
+    if not ticker.strip():
+        st.sidebar.error("Enter a stock symbol first (e.g. AAPL).")
+    else:
+        try:
+            data = load_stock_data(ticker, next(filter(lambda x: x["period"] == time_period, INTERVAL_MAPPING)))
+            if data.empty:
+                raise ValueError(f"No data found for '{ticker}' — check the symbol.")
 
-    last_close, change, pct_change, high, low, volume = calculate_metrics(data)
-    st.session_state.stock_metrics = {
-        "last_close": last_close,
-        "change": change,
-        "pct_change": pct_change,
-        "high": high,
-        "low": low,
-        "volume": volume,
-    }
+            last_close, change, pct_change, high, low, volume = calculate_metrics(data)
+            st.session_state.stock_metrics = {
+                "last_close": last_close,
+                "change": change,
+                "pct_change": pct_change,
+                "high": high,
+                "low": low,
+                "volume": volume,
+            }
 
-    # Add selected technical indicators
-    data = add_technical_indicators(data, indicators)
+            # Add selected technical indicators
+            data = add_technical_indicators(data, indicators)
 
-    # Build chart using ChartBuilder
-    fig = ChartBuilder.build_chart(data, ticker, indicators, time_period, chart_type)
+            # Build chart using ChartBuilder
+            fig = ChartBuilder.build_chart(data, ticker, indicators, time_period, chart_type)
 
-    st.session_state.stock_fig = fig
-    st.session_state.selected_indicators = indicators
+            st.session_state.stock_fig = fig
+            st.session_state.selected_indicators = indicators
+        except Exception as e:
+            logger.exception("Failed to load stock data for %s: %s", ticker, e)
+            st.sidebar.error(f"Couldn't load data for '{ticker}'. Check the symbol and try again.")
 
 if sidebar_col2.button("Generate report", type="primary", use_container_width=True):
-    with st.spinner("Running multi-agent analysis…"):
-        try:
-            crew = StockAnalysisCrewFactory.create(crew_mode, llm_provider)
-            tool_capture.start()
-            result = crew.run(ticker)
-            _api_data = tool_capture.collect()
+    if not ticker.strip():
+        st.sidebar.error("Enter a stock symbol first (e.g. AAPL).")
+    else:
+        # A new report makes any evaluation of the *previous* report stale — clear it
+        # so the page can't show yesterday's eval next to today's report.
+        st.session_state.evaluation_results = None
+        st.session_state.run_stem = None
+        st.session_state.run_record = None
 
-            report_md = format_markdown(str(result["report"]))
-            report_cleaned = escape_markdown_specials(report_md)
-            st.session_state.report = report_cleaned
-            st.session_state.report_mode = result["mode"]
-            st.session_state.report_provider = result["provider"]
-            st.session_state.execution_time = result["execution_time"]
-            st.session_state.report_recommendation = result.get("recommendation")
+        with st.spinner("Running multi-agent analysis…"):
             try:
-                cfg = load_config(llm_provider)
-                model = cfg.model_group_chat if crew_mode == CrewMode.GROUP_CHAT.value else cfg.model_sequential
-                api_data = _api_data
-                run_record = ExperimentRun(
-                    instrument=ticker.upper(),
-                    timestamp=datetime.now(),
-                    mode=result["mode"],
-                    provider=result["provider"],
-                    model=model,
-                    temperature=cfg.temperature,
-                    execution_time=result["execution_time"],
-                    recommendation=result.get("recommendation"),
-                    **api_data,
-                )
-                stem = exp_serializer.save_run_json(run_record, _APP_OUTPUT_DIR)
-                exp_serializer.save_report_md(report_cleaned, stem, _APP_OUTPUT_DIR)
-                st.session_state.run_stem = stem
-                st.session_state.run_record = run_record
+                crew = StockAnalysisCrewFactory.create(crew_mode, llm_provider)
+                tool_capture.start()
+                result = crew.run(ticker)
+                _api_data = tool_capture.collect()
+
+                report_md = format_markdown(str(result["report"]))
+                report_cleaned = escape_markdown_specials(report_md)
+                st.session_state.report = report_cleaned
+                st.session_state.report_mode = result["mode"]
+                st.session_state.report_provider = result["provider"]
+                st.session_state.execution_time = result["execution_time"]
+                st.session_state.report_recommendation = result.get("recommendation")
+                try:
+                    cfg = load_config(llm_provider)
+                    model = cfg.model_group_chat if crew_mode == CrewMode.GROUP_CHAT.value else cfg.model_sequential
+                    api_data = _api_data
+                    run_record = ExperimentRun(
+                        instrument=ticker.upper(),
+                        timestamp=datetime.now(),
+                        mode=result["mode"],
+                        provider=result["provider"],
+                        model=model,
+                        temperature=cfg.temperature,
+                        execution_time=result["execution_time"],
+                        recommendation=result.get("recommendation"),
+                        **api_data,
+                    )
+                    stem = exp_serializer.save_run_json(run_record, _APP_OUTPUT_DIR)
+                    exp_serializer.save_report_md(report_cleaned, stem, _APP_OUTPUT_DIR)
+                    st.session_state.run_stem = stem
+                    st.session_state.run_record = run_record
+                except Exception as e:
+                    logger.exception("Failed to serialize run data: %s", e)
+                    st.warning(f"Report saved but serialization failed: {e}")
+            except ValueError as e:
+                st.error(f"Configuration Error: {str(e)}\n\nPlease ensure API keys are set in your .env file.")
             except Exception as e:
-                logger.exception("Failed to serialize run data: %s", e)
-                st.warning(f"Report saved but serialization failed: {e}")
-        except ValueError as e:
-            st.error(f"Configuration Error: {str(e)}\n\nPlease ensure API keys are set in your .env file.")
+                logger.exception("Report generation failed for %s: %s", ticker, e)
+                st.error(f"Couldn't generate a report for '{ticker}'. Check the symbol and try again.")
 
 if st.session_state.stock_metrics is not None:
     last_close = st.session_state.stock_metrics["last_close"]
