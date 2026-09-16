@@ -25,7 +25,10 @@ An AI-powered stock analysis platform that generates professional investment rep
 ## LLM Configuration
 
 Default: **OpenAI `gpt-4.1`** for all modes.  
-Gemini is also supported — switch via UI dropdown or `LLM_PROVIDER` in `.env`.
+Gemini is also supported in the codebase (`LLM_PROVIDER=gemini` in `.env`) and used for
+experiments — the live demo's UI provider selector is locked to OpenAI only, since the
+hosted instance has no Gemini API key and the free tier's rate limits are too tight for
+live use.
 
 ## Evaluation
 
@@ -48,7 +51,7 @@ Every generated report can be evaluated via the **Evaluate Report Quality** butt
     ```dotenv
     LLM_PROVIDER=openai
     OPENAI_API_KEY=your_openai_api_key
-    GEMINI_API_KEY=your_gemini_api_key
+    GEMINI_API_KEY=your_gemini_api_key   # optional — not selectable in the UI, used for experiments only
     FINNHUB_API_KEY=your_finnhub_api_key
     ALPHA_VANTAGE_API_KEY=your_alphavantage_api_key
     ```
