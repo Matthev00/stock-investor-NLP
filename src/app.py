@@ -139,9 +139,11 @@ llm_provider = st.sidebar.selectbox(
     format_func=lambda x: "OpenAI",
 )
 
+_crew_mode_options = [CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value, CrewMode.SINGLE_AGENT.value]
 crew_mode = st.sidebar.radio(
     "Analysis Mode",
-    options=[CrewMode.SEQUENTIAL.value, CrewMode.GROUP_CHAT.value, CrewMode.SINGLE_AGENT.value],
+    options=_crew_mode_options,
+    index=_crew_mode_options.index(CrewMode.SINGLE_AGENT.value),
     format_func=lambda x: {
         CrewMode.SEQUENTIAL.value: "Sequential",
         CrewMode.GROUP_CHAT.value: "Group Chat",
